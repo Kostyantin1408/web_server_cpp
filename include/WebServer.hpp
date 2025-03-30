@@ -7,35 +7,28 @@
 #include <iostream>
 #include <functional>
 
-typedef websocketpp::server<websocketpp::config::asio> server;
-
 
 class WebServer {
 public:
-     WebServer() {
-        m_server.set_access_channels(websocketpp::log::alevel::app);
-        m_server.clear_access_channels(websocketpp::log::alevel::frame_payload);
-        m_server.init_asio();
-        m_server.set_http_handler(std::bind(&WebServer::on_http, this, std::placeholders::_1));
-    }
+    WebServer();
 
-    void listen(int port) {
-        m_server.listen(port);
-    }
+    void listen(int port);
 
-    void start_accept() {
-        m_server.start_accept();
-    }
+    void start_accept();
 
-    void run() {
-        m_server.run();
-    }
+    void run();
+
+    static int static_server_fd;
 
 private:
-    server m_server;
-    std::unordered_map<std::string, std::function<void(server::connection_ptr, const std::string&)>> m_handlers;
+    int server_fd;
+    sockaddr_in address;
+    volatile bool stop_server;
 
-    void on_http(websocketpp::connection_hdl hdl);
+    std::function<void(int)> m_http_handler;
+
+    void on_http(int client_fd);
+
 };
 
 
