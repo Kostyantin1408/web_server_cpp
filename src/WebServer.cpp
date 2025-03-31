@@ -1,5 +1,5 @@
 #include "WebServer.hpp"
-
+#include "HttpRequest.hpp"
 
 static void handle_signal(int signo) {
     if (WebServer::static_server_fd != -1) {
@@ -75,8 +75,24 @@ void WebServer::on_http(int client_fd) {
     }
     char buffer[1024];
     ssize_t bytes_read = read(client_fd, buffer, sizeof(buffer) - 1);
+
     if (bytes_read > 0) {
         buffer[bytes_read] = '\0';
+
+        std::string request_raw(buffer);
+        HttpRequest req = parse_http_request(request_raw);
+        std::cout << "Parsed request:" << std::endl;
+        std::cout << "Method: " << req.method << std::endl;
+        std::cout << "Path: " << req.path << std::endl;
+        std::cout << "Version: " << req.version << std::endl;
+        for (const auto& [key, value] : req.headers) {
+            std::cout << "Header: " << key << " = " << value << std::endl;
+        }
+        std::cout << "Body: " << req.body << std::endl;
+        std::cout << "Parsed query params:\n";
+        for (const auto& [key, val] : req.query_params) {
+            std::cout << key << " = " << val << "\n";
+        }
     }
 
     const char* http_response =

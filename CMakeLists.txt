@@ -20,7 +20,7 @@ endif()
 #include_directories(${websocketpp_SOURCE_DIR})
 include_directories(${Boost_INCLUDE_DIRS} ${websocketpp_SOURCE_DIR})
 
-add_executable(websocket__ main.cpp src/WebServer.cpp)
+add_executable(websocket__ main.cpp src/WebServer.cpp src/HttpRequest.cpp)
 target_include_directories(websocket__ PRIVATE include)
 #target_link_libraries(websocket__ pthread)
 target_link_libraries(websocket__ ${Boost_LIBRARIES} pthread)
