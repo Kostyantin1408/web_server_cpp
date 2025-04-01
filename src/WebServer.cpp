@@ -68,11 +68,15 @@ void WebServer::run() {
     start_accept();
 }
 
+void WebServer::get(const std::string &route, std::function<void(int, HttpRequest)> handler) {
+    get_handlers[route] = handler;
+}
+
+void WebServer::post(const std::string &route, std::function<void(int, HttpRequest)> handler) {
+    post_handlers[route] = handler;
+}
+
 void WebServer::on_http(int client_fd) {
-    if (m_http_handler) {
-        m_http_handler(client_fd);
-        return;
-    }
     char buffer[1024];
     ssize_t bytes_read = read(client_fd, buffer, sizeof(buffer) - 1);
 
@@ -81,28 +85,13 @@ void WebServer::on_http(int client_fd) {
 
         std::string request_raw(buffer);
         HttpRequest req = parse_http_request(request_raw);
-        std::cout << "Parsed request:" << std::endl;
-        std::cout << "Method: " << req.method << std::endl;
-        std::cout << "Path: " << req.path << std::endl;
-        std::cout << "Version: " << req.version << std::endl;
-        for (const auto& [key, value] : req.headers) {
-            std::cout << "Header: " << key << " = " << value << std::endl;
-        }
-        std::cout << "Body: " << req.body << std::endl;
-        std::cout << "Parsed query params:\n";
-        for (const auto& [key, val] : req.query_params) {
-            std::cout << key << " = " << val << "\n";
+        if (req.method == "GET") {
+            get_handlers[req.path](client_fd, req);
+        } else if (req.method == "POST") {
+            post_handlers[req.path](client_fd, req);
         }
     }
 
-    const char* http_response =
-            "HTTP/1.1 200 OK\r\n"
-            "Content-Type: text/plain\r\n"
-            "Content-Length: 13\r\n"
-            "\r\n"
-            "Hello, World!";
-
-    write(client_fd, http_response, std::strlen(http_response));
 }
 
 int WebServer::static_server_fd = -1;
