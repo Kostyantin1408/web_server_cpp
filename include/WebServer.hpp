@@ -6,6 +6,7 @@
 #include <websocketpp/server.hpp>
 #include <iostream>
 #include <functional>
+#include "HttpRequest.hpp"
 
 
 class WebServer {
@@ -18,6 +19,11 @@ public:
 
     void run();
 
+    void post(const std::string &route, std::function<void(int, HttpRequest)> handler);
+
+    void get(const std::string &route, std::function<void(int, HttpRequest)> handler);
+
+
     static int static_server_fd;
 
 private:
@@ -25,8 +31,8 @@ private:
     sockaddr_in address;
     volatile bool stop_server;
 
-    std::function<void(int)> m_http_handler;
-
+    std::unordered_map<std::string, std::function<void(int, HttpRequest)>> get_handlers;
+    std::unordered_map<std::string, std::function<void(int, HttpRequest)>> post_handlers;
     void on_http(int client_fd);
 
 };
