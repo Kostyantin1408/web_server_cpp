@@ -1,98 +1,105 @@
-#include "WebServer.hpp"
-#include "HttpRequest.hpp"
+#include <WebServer.hpp>
+#include <HttpRequest.hpp>
+#include <sys/socket.h>
+#include <unistd.h>
+#include <cstring>
+#include <iostream>
 
-static void handle_signal(int signo) {
-    if (WebServer::static_server_fd != -1) {
-        close(WebServer::static_server_fd);
-    }
-    _exit(0);
-}
-
-WebServer::WebServer() : server_fd(-1), stop_server(false) {
-    struct sigaction sa;
-    sa.sa_handler = handle_signal;
-    sigemptyset(&sa.sa_mask);
-    sa.sa_flags = 0;
-    if (sigaction(SIGTERM, &sa, NULL) == -1) {
-        perror("sigaction(SIGTERM)");
-        exit(EXIT_FAILURE);
-    }
+WebServer::WebServer(Parameters parameters_) : parameters{std::move(parameters_)} {
+  listen(parameters.port);
 }
 
 void WebServer::listen(int port) {
-    server_fd = socket(AF_INET, SOCK_STREAM, 0);
-    static_server_fd = server_fd;
-    if (server_fd < 0) {
-        throw std::runtime_error("socket creation failed");
-    }
+  server_fd = socket(AF_INET, SOCK_STREAM, 0);
+  static_server_fd = server_fd;
+  if (server_fd < 0) {
+    throw std::runtime_error("socket creation failed");
+  }
 
-    int opt = 1;
-    if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0) {
-        close(server_fd);
-        throw std::runtime_error("setsockopt failed");
-    }
+  int opt = 1;
+  if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0) {
+    close(server_fd);
+    throw std::runtime_error("setsockopt failed");
+  }
 
-    std::memset(&address, 0, sizeof(address));
-    address.sin_family = AF_INET;
-    address.sin_addr.s_addr = INADDR_ANY;
-    address.sin_port = htons(port);
+  std::memset(&address, 0, sizeof(address));
+  address.sin_family = AF_INET;
+  address.sin_addr.s_addr = INADDR_ANY;
+  address.sin_port = htons(port);
 
-    if (bind(server_fd, reinterpret_cast<sockaddr*>(&address), sizeof(address)) < 0) {
-        close(server_fd);
-        throw std::runtime_error("bind failed");
-    }
-    if (::listen(server_fd, 3) < 0) {
-        close(server_fd);
-        throw std::runtime_error("listen failed");
-    }
+  if (bind(server_fd, reinterpret_cast<sockaddr *>(&address), sizeof(address)) < 0) {
+    close(server_fd);
+    throw std::runtime_error("bind failed");
+  }
+  if (::listen(server_fd, 3) < 0) {
+    close(server_fd);
+    throw std::runtime_error("listen failed");
+  }
 
-    std::cout << "HTTP server listening on port " << port << "..." << std::endl;
+  std::cout << "HTTP server listening on port " << port << "..." << std::endl;
 }
 
 void WebServer::start_accept() {
-    while (!stop_server) {
-        socklen_t addr_len = sizeof(address);
-        int client_fd = accept(server_fd, reinterpret_cast<sockaddr*>(&address), &addr_len);
-        if (client_fd < 0) {
-            if (stop_server)
-                break;
-            std::cerr << "accept failed" << std::endl;
-            continue;
-        }
-        on_http(client_fd);
-        close(client_fd);
+  while (!stop_server) {
+    socklen_t addr_len = sizeof(address);
+    int client_fd = accept(server_fd, reinterpret_cast<sockaddr *>(&address), &addr_len);
+    if (client_fd < 0) {
+      if (stop_server)
+        break;
+      std::cerr << "accept failed" << std::endl;
+      continue;
     }
+    on_http(client_fd);
+    close(client_fd);
+  }
 }
 
 void WebServer::run() {
-    start_accept();
+  server_thread = std::jthread{[this](const std::stop_token &stop_token) { worker(stop_token); }};
+  stop_source = server_thread.get_stop_source();
 }
 
 void WebServer::get(const std::string &route, std::function<void(int, HttpRequest)> handler) {
-    get_handlers[route] = handler;
+  get_handlers[route] = handler;
 }
 
 void WebServer::post(const std::string &route, std::function<void(int, HttpRequest)> handler) {
-    post_handlers[route] = handler;
+  post_handlers[route] = handler;
 }
 
-void WebServer::on_http(int client_fd) {
-    char buffer[1024];
-    ssize_t bytes_read = read(client_fd, buffer, sizeof(buffer) - 1);
-
-    if (bytes_read > 0) {
-        buffer[bytes_read] = '\0';
-
-        std::string request_raw(buffer);
-        HttpRequest req = parse_http_request(request_raw);
-        if (req.method == "GET") {
-            get_handlers[req.path](client_fd, req);
-        } else if (req.method == "POST") {
-            post_handlers[req.path](client_fd, req);
-        }
+void WebServer::worker(std::stop_token) {
+  while (!stop_source.stop_requested()) {
+    socklen_t addr_len = sizeof(address);
+    int client_fd = accept(server_fd, reinterpret_cast<sockaddr *>(&address), &addr_len);
+    if (client_fd < 0) {
+      std::cerr << "accept failed" << std::endl;
+      continue;
     }
+    on_http(client_fd);
+    close(client_fd);
+  }
+}
 
+void WebServer::wait_for_exit() {
+  server_thread.join();
+}
+
+
+void WebServer::on_http(int client_fd) {
+  char buffer[1024];
+  ssize_t bytes_read = read(client_fd, buffer, sizeof(buffer) - 1);
+
+  if (bytes_read > 0) {
+    buffer[bytes_read] = '\0';
+
+    std::string request_raw(buffer);
+    HttpRequest req = parse_http_request(request_raw);
+    if (req.method == "GET") {
+      get_handlers[req.path](client_fd, req);
+    } else if (req.method == "POST") {
+      post_handlers[req.path](client_fd, req);
+    }
+  }
 }
 
 int WebServer::static_server_fd = -1;
-
