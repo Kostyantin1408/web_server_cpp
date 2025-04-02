@@ -39,21 +39,6 @@ void WebServer::listen(int port) {
   std::cout << "HTTP server listening on port " << port << "..." << std::endl;
 }
 
-void WebServer::start_accept() {
-  while (!stop_server) {
-    socklen_t addr_len = sizeof(address);
-    int client_fd = accept(server_fd, reinterpret_cast<sockaddr *>(&address), &addr_len);
-    if (client_fd < 0) {
-      if (stop_server)
-        break;
-      std::cerr << "accept failed" << std::endl;
-      continue;
-    }
-    on_http(client_fd);
-    close(client_fd);
-  }
-}
-
 void WebServer::run() {
   server_thread = std::jthread{[this](const std::stop_token &stop_token) { worker(stop_token); }};
   stop_source = server_thread.get_stop_source();
@@ -78,6 +63,19 @@ void WebServer::worker(std::stop_token) {
     on_http(client_fd);
     close(client_fd);
   }
+}
+
+void WebServer::stop() {
+  if (!stop_source.request_stop()) {
+    throw std::runtime_error("Failed to request server stop.");
+  }
+
+  shutdown(server_fd, SHUT_RDWR);
+
+  wait_for_exit();
+
+  close(server_fd);
+  std::cout << "Server stopped." << std::endl;
 }
 
 void WebServer::wait_for_exit() {
