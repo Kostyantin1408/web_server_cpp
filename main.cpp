@@ -19,6 +19,7 @@ int main() {
   });
 
   server.run();
-  server.wait_for_exit();
+  std::this_thread::sleep_for(std::chrono::seconds(4));
+  server.stop();
   return 0;
 }

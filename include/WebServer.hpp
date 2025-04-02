@@ -16,27 +16,26 @@ public:
 
   WebServer(Parameters parameters_);
 
-  void listen(int port);
-
-  void start_accept();
-
   void run();
 
   void post(const std::string &route, std::function<void(int, HttpRequest)> handler);
 
   void get(const std::string &route, std::function<void(int, HttpRequest)> handler);
 
-  void worker(std::stop_token);
+  void worker(std::stop_token stop_token);
+
+  void stop();
 
   void wait_for_exit();
 
   static int static_server_fd;
 
 private:
+  void listen(int port);
+
   Parameters parameters;
   int server_fd;
   sockaddr_in address;
-  volatile bool stop_server;
   std::jthread server_thread;
   std::stop_source stop_source;
 
