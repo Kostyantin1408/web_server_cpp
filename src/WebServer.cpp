@@ -65,7 +65,7 @@ void WebServer::worker(std::stop_token) {
   }
 }
 
-void WebServer::stop() {
+void WebServer::request_stop() {
   if (!stop_source.request_stop()) {
     throw std::runtime_error("Failed to request server stop.");
   }
