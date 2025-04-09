@@ -24,7 +24,7 @@ public:
 
   void worker(std::stop_token stop_token);
 
-  void stop();
+  void request_stop();
 
   void wait_for_exit();
 

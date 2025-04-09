@@ -20,6 +20,6 @@ int main() {
 
   server.run();
   std::this_thread::sleep_for(std::chrono::seconds(4));
-  server.stop();
+  server.request_stop();
   return 0;
 }
