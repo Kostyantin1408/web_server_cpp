@@ -41,7 +41,6 @@ void WebServer::listen(int port) {
 
 void WebServer::run() {
   server_thread = std::jthread{[this](const std::stop_token &stop_token) { worker(stop_token); }};
-  stop_source = server_thread.get_stop_source();
 }
 
 void WebServer::get(const std::string &route, std::function<void(int, HttpRequest)> handler) {
@@ -52,8 +51,8 @@ void WebServer::post(const std::string &route, std::function<void(int, HttpReque
   post_handlers[route] = handler;
 }
 
-void WebServer::worker(std::stop_token) {
-  while (!stop_source.stop_requested()) {
+void WebServer::worker(const std::stop_token &stop_token) {
+  while (!stop_token.stop_requested()) {
     socklen_t addr_len = sizeof(address);
     int client_fd = accept(server_fd, reinterpret_cast<sockaddr *>(&address), &addr_len);
     if (client_fd < 0) {
@@ -66,11 +65,10 @@ void WebServer::worker(std::stop_token) {
 }
 
 void WebServer::request_stop() {
-  if (!stop_source.request_stop()) {
-    throw std::runtime_error("Failed to request server stop.");
-  }
-
+  server_thread.request_stop();
   shutdown(server_fd, SHUT_RDWR);
+
+  server_thread.join();
 
   wait_for_exit();
 
@@ -79,7 +77,10 @@ void WebServer::request_stop() {
 }
 
 void WebServer::wait_for_exit() {
-  server_thread.join();
+  if (server_thread.joinable()) {
+    server_thread.join();
+  }
+  close(server_fd);
 }
 
 
