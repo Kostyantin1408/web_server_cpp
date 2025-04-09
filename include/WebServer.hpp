@@ -22,7 +22,7 @@ public:
 
   void get(const std::string &route, std::function<void(int, HttpRequest)> handler);
 
-  void worker(std::stop_token stop_token);
+  void worker(const std::stop_token &stop_token);
 
   void request_stop();
 
@@ -37,7 +37,6 @@ private:
   int server_fd;
   sockaddr_in address;
   std::jthread server_thread;
-  std::stop_source stop_source;
 
   bool is_running = false;
 
