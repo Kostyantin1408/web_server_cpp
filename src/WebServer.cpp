@@ -56,7 +56,6 @@ void WebServer::worker(const std::stop_token &stop_token) {
     socklen_t addr_len = sizeof(address);
     int client_fd = accept(server_fd, reinterpret_cast<sockaddr *>(&address), &addr_len);
     if (client_fd < 0) {
-      std::cerr << "accept failed" << std::endl;
       continue;
     }
     on_http(client_fd);
