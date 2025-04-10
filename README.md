@@ -23,9 +23,13 @@ cmake ..
 make
 ```
 
-## Run example of start and stop
+## Run example
 ```bash
 ./web_server
+```
+
+```shell
+curl -X GET http://127.0.0.1:8080/ -H "Content-Type: application/json" -d '{"update":"new_value"}'
 ```
 
 ## Usage example
