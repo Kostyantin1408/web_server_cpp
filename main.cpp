@@ -12,14 +12,13 @@ int main() {
     }
     const char *response = "HTTP/1.1 200 OK\r\n"
                            "Content-Type: text/plain\r\n"
-                           "Content-Length: 13\r\n"
+                           "Content-Length: 6\r\n"
                            "\r\n"
                            "hello!";
     write(client_fd, response, std::strlen(response));
   });
 
   server.run();
-  std::this_thread::sleep_for(std::chrono::seconds(4));
-  server.request_stop();
+  server.wait_for_exit();
   return 0;
 }
