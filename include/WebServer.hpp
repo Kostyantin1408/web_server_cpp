@@ -4,6 +4,8 @@
 #include "HttpRequest.hpp"
 #include <functional>
 #include <netinet/in.h>
+#include <queue>
+#include <condition_variable>
 #include <stop_token>
 #include <thread>
 
@@ -14,15 +16,13 @@ public:
     int port{};
   };
 
-  WebServer(Parameters parameters_);
+  explicit WebServer(Parameters parameters_);
 
   void run();
 
   void post(const std::string &route, std::function<void(int, HttpRequest)> handler);
 
   void get(const std::string &route, std::function<void(int, HttpRequest)> handler);
-
-  void worker(std::stop_token stop_token);
 
   void stop();
 
@@ -32,6 +32,9 @@ public:
 
 private:
   void listen(int port);
+  void on_http(int client_fd);
+  void main_thread_acceptor(const std::stop_token& token);
+  [[noreturn]] void worker();
 
   Parameters parameters;
   int server_fd;
@@ -43,7 +46,15 @@ private:
 
   std::unordered_map<std::string, std::function<void(int, HttpRequest)>> get_handlers;
   std::unordered_map<std::string, std::function<void(int, HttpRequest)>> post_handlers;
-  void on_http(int client_fd);
+
+  static constexpr int number_of_workers = 8;
+
+  std::array<std::jthread, number_of_workers> thread_pool;
+  std::queue<int> tasks_queue;
+  std::mutex mtx;
+  std::condition_variable cv;
+
+  bool shutdownFlag = false;
 };
 
 #endif // WEBSOCKET___WEBSERVER_HPP

@@ -4,6 +4,9 @@
 #include <unistd.h>
 #include <cstring>
 #include <iostream>
+#include <mutex>
+#include <utility>
+
 
 WebServer::WebServer(Parameters parameters_) : parameters{std::move(parameters_)} {
   listen(parameters.port);
@@ -40,19 +43,22 @@ void WebServer::listen(int port) {
 }
 
 void WebServer::run() {
-  server_thread = std::jthread{[this](const std::stop_token &stop_token) { worker(stop_token); }};
+  server_thread = std::jthread{[this](const std::stop_token &stop_token) { main_thread_acceptor(stop_token); }};
+  for (unsigned int i = 0; i < number_of_workers; ++i) {
+    thread_pool[i] = std::jthread{[this]() { worker(); }};
+  }
   stop_source = server_thread.get_stop_source();
 }
 
 void WebServer::get(const std::string &route, std::function<void(int, HttpRequest)> handler) {
-  get_handlers[route] = handler;
+  get_handlers[route] = std::move(handler);
 }
 
 void WebServer::post(const std::string &route, std::function<void(int, HttpRequest)> handler) {
-  post_handlers[route] = handler;
+  post_handlers[route] = std::move(handler);
 }
 
-void WebServer::worker(std::stop_token) {
+void WebServer::main_thread_acceptor(const std::stop_token&) {
   while (!stop_source.stop_requested()) {
     socklen_t addr_len = sizeof(address);
     int client_fd = accept(server_fd, reinterpret_cast<sockaddr *>(&address), &addr_len);
@@ -60,6 +66,28 @@ void WebServer::worker(std::stop_token) {
       std::cerr << "accept failed" << std::endl;
       continue;
     }
+    {
+      std::unique_lock<std::mutex> lock(mtx);
+      tasks_queue.push(client_fd);
+    }
+    cv.notify_one();
+  }
+}
+
+[[noreturn]] void WebServer::worker() {
+  while (true) {
+    int client_fd;
+    {
+      std::unique_lock<std::mutex> lock(mtx);
+      cv.wait(lock, [&] { return !tasks_queue.empty() || shutdownFlag; });
+
+      if (shutdownFlag && tasks_queue.empty())
+        break;
+
+      client_fd = tasks_queue.front();
+      tasks_queue.pop();
+    }
+    std::cout << "Processing client: " << client_fd << std::endl;
     on_http(client_fd);
     close(client_fd);
   }
