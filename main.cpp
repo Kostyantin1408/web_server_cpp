@@ -5,11 +5,9 @@
 #include <unistd.h>
 
 int main() {
-  WebServer server{{"127.0.0.1", 8080}};
+  WebServer server{{"127.0.0.1", 1234}};
   server.get("/", [](int client_fd, const HttpRequest &req) {
-    for (const auto &[key, val] : req.headers) {
-      std::cout << key << ": " << val << std::endl;
-    }
+    std::this_thread::sleep_for(std::chrono::seconds(5));
     const char *response = "HTTP/1.1 200 OK\r\n"
                            "Content-Type: text/plain\r\n"
                            "Content-Length: 13\r\n"
@@ -18,8 +16,18 @@ int main() {
     write(client_fd, response, std::strlen(response));
   });
 
+  server.get("/hello", [](int client_fd, const HttpRequest &req) {
+    std::this_thread::sleep_for(std::chrono::seconds(5));
+    const char *response = "HTTP/1.1 200 OK\r\n"
+                           "Content-Type: text/plain\r\n"
+                           "Content-Length: 13\r\n"
+                           "\r\n"
+                           "hello_there!";
+    write(client_fd, response, std::strlen(response));
+  });
+
   server.run();
-  std::this_thread::sleep_for(std::chrono::seconds(4));
-  server.stop();
+
+  server.wait_for_exit();
   return 0;
 }
