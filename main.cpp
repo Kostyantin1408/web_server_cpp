@@ -1,5 +1,4 @@
 #include "WebServer.hpp"
-
 #include <cstring>
 #include <iostream>
 #include <unistd.h>
@@ -28,6 +27,8 @@ int main() {
 
   server.run();
 
-  server.wait_for_exit();
+  std::this_thread::sleep_for(std::chrono::seconds(10));
+
+  server.stop();
   return 0;
 }

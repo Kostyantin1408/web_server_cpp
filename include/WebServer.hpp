@@ -28,17 +28,16 @@ public:
 
   void wait_for_exit();
 
-  static int static_server_fd;
+  void on_http(int client_fd);
 
 private:
   void listen(int port);
-  void on_http(int client_fd);
   void main_thread_acceptor(const std::stop_token& token);
-  [[noreturn]] void worker();
+  void worker();
 
   Parameters parameters;
-  int server_fd;
-  sockaddr_in address;
+  int server_fd{};
+  sockaddr_in address{};
   std::jthread server_thread;
   std::stop_source stop_source;
 
@@ -49,7 +48,7 @@ private:
 
   static constexpr int number_of_workers = 8;
 
-  std::array<std::jthread, number_of_workers> thread_pool;
+  std::vector<std::jthread> thread_pool;
   std::queue<int> tasks_queue;
   std::mutex mtx;
   std::condition_variable cv;
