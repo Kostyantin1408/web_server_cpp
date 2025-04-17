@@ -1,34 +1,20 @@
 #include "WebServer.hpp"
-#include <cstring>
 #include <iostream>
-#include <unistd.h>
+#include <filesystem>
 
 int main() {
-  WebServer server{{"127.0.0.1", 1234}};
-  server.get("/", [](int client_fd, const HttpRequest &req) {
-    std::this_thread::sleep_for(std::chrono::seconds(5));
-    const char *response = "HTTP/1.1 200 OK\r\n"
-                           "Content-Type: text/plain\r\n"
-                           "Content-Length: 13\r\n"
-                           "\r\n"
-                           "hello!";
-    write(client_fd, response, std::strlen(response));
-  });
+    WebServer server{{"127.0.0.1", 8080}};
 
-  server.get("/hello", [](int client_fd, const HttpRequest &req) {
-    std::this_thread::sleep_for(std::chrono::seconds(5));
-    const char *response = "HTTP/1.1 200 OK\r\n"
-                           "Content-Type: text/plain\r\n"
-                           "Content-Length: 13\r\n"
-                           "\r\n"
-                           "hello_there!";
-    write(client_fd, response, std::strlen(response));
-  });
+    const std::filesystem::path base_assets_path = std::filesystem::absolute("assets");
 
-  server.run();
+    server.get("/", [base_assets_path](int, const HttpRequest &) {
+        return HttpResponse::FromFile((base_assets_path / "index.html").string(), "text/html");
+    });
 
-  std::this_thread::sleep_for(std::chrono::seconds(10));
+    server.get("/assets", [base_assets_path](int, const HttpRequest& req) {
+        return HttpResponse::ServeStatic(base_assets_path, req, "/assets");
+    });
 
-  server.stop();
-  return 0;
+    server.run();
+    std::this_thread::sleep_for(std::chrono::minutes(10));
 }

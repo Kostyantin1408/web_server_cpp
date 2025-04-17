@@ -1,0 +1,30 @@
+body {
+    font-family: 'Segoe UI', sans-serif;
+    background-color: #4B1D72;
+    color: #FFFFFF;
+    padding: 3rem;
+    margin: 0;
+}
+
+h1 {
+    color: #B9FF66;
+    font-size: 2.5rem;
+    margin-bottom: 1rem;
+}
+
+p {
+    font-size: 1.2rem;
+    color: #EDEDED;
+}
+
+img {
+    margin-top: 2rem;
+    border: 3px solid #B9FF66;
+    border-radius: 10px;
+    box-shadow: 0 0 20px rgba(185, 255, 102, 0.4);
+}
+
+a {
+    color: #B9FF66;
+    text-decoration: none;
+}

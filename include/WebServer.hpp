@@ -2,6 +2,7 @@
 #define WEBSOCKET___WEBSERVER_HPP
 
 #include "HttpRequest.hpp"
+#include "HttpResponse.hpp"
 #include <functional>
 #include <netinet/in.h>
 #include <queue>
@@ -11,6 +12,8 @@
 
 class WebServer {
 public:
+  using RouteHandler = std::function<HttpResponse(int, const HttpRequest&)>;
+
   struct Parameters {
     std::string host{};
     int port{};
@@ -20,9 +23,9 @@ public:
 
   void run();
 
-  void post(const std::string &route, std::function<void(int, HttpRequest)> handler);
+  void get(const std::string &route, RouteHandler handler);
+  void post(const std::string &route, RouteHandler handler);
 
-  void get(const std::string &route, std::function<void(int, HttpRequest)> handler);
 
   void stop();
 
@@ -43,8 +46,8 @@ private:
 
   bool is_running = false;
 
-  std::unordered_map<std::string, std::function<void(int, HttpRequest)>> get_handlers;
-  std::unordered_map<std::string, std::function<void(int, HttpRequest)>> post_handlers;
+  std::unordered_map<std::string, RouteHandler> get_handlers;
+  std::unordered_map<std::string, RouteHandler> post_handlers;
 
   static constexpr int number_of_workers = 8;
 
