@@ -1,8 +1,16 @@
 #include "WebServer.hpp"
-#include <iostream>
 #include <filesystem>
+#include "encryption.hpp"
+
+
 
 int main() {
+
+//    std::string client_key = "dGhlIHNhbXBsZSBub25jZQ==";
+//    std::string accept   = compute_accept_key(client_key);
+//    std::cout << "Sec-WebSocket-Accept: " << accept << "\n";
+//
+
     WebServer server{{"127.0.0.1", 8080}};
 
     const std::filesystem::path base_assets_path = std::filesystem::absolute("assets");
