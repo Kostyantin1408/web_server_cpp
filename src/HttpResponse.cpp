@@ -1,4 +1,6 @@
 #include "HttpResponse.hpp"
+
+#include <encryption.hpp>
 #include <sstream>
 #include <fstream>
 #include <filesystem>
@@ -128,4 +130,15 @@ HttpResponse HttpResponse::ServeStatic(const std::filesystem::path &base_path, c
     std::string mime = detect_mime(ext);
 
     return FromFile(full_path.string(), mime);
+}
+
+HttpResponse HttpResponse::WebSocketSwitchingProtocols(const std::string &websocket_key) {
+    HttpResponse res;
+    res.status_code = 101;
+    res.status_text = "Switching Protocols";
+    res.set_header("Upgrade", "websocket");
+    res.set_header("Connection", "Upgrade");
+    res.set_header("Sec-WebSocket-Accept", compute_accept_key(websocket_key));
+    res.body = "";
+    return res;
 }

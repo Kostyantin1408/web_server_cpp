@@ -24,6 +24,8 @@ struct HttpResponse {
     static HttpResponse Html(const std::string& html, int status = 200);
     static HttpResponse FromFile(const std::string& file_path, const std::string& content_type = "application/octet-stream");
     static HttpResponse ServeStatic(const std::filesystem::path& base_path, const HttpRequest& req, const std::string& route_prefix = "/assets");
+    static HttpResponse WebSocketSwitchingProtocols(const std::string& websocket_key);
+
 
 };
 
