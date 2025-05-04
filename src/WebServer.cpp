@@ -3,6 +3,7 @@
 #include <sys/socket.h>
 #include <unistd.h>
 #include <cstring>
+#include <encryption.hpp>
 #include <iostream>
 #include <mutex>
 #include <utility>
@@ -50,14 +51,6 @@ void WebServer::run() {
     stop_source = server_thread.get_stop_source();
 }
 
-void WebServer::get(const std::string &route, RouteHandler handler) {
-    get_handlers[route] = std::move(handler);
-}
-
-void WebServer::post(const std::string &route, RouteHandler handler) {
-    post_handlers[route] = std::move(handler);
-}
-
 void WebServer::main_thread_acceptor(const std::stop_token &token) {
     while (!token.stop_requested()) {
         socklen_t addr_len = sizeof(address);
@@ -90,6 +83,39 @@ void WebServer::worker() {
         close(client_fd);
     }
 }
+
+void WebServer::handle(HttpRequest::HttpMethod method, const std::string &route, RouteHandler handler) {
+    method_handlers[method][route] = std::move(handler);
+}
+
+void WebServer::get(const std::string &route, RouteHandler handler) {
+    handle(HttpRequest::HttpMethod::HTTP_GET, route, std::move(handler));
+}
+
+void WebServer::post(const std::string &route, RouteHandler handler) {
+    handle(HttpRequest::HttpMethod::HTTP_POST, route, std::move(handler));
+}
+
+void WebServer::put(const std::string &route, RouteHandler handler) {
+    handle(HttpRequest::HttpMethod::HTTP_PUT, route, std::move(handler));
+}
+
+void WebServer::del(const std::string &route, RouteHandler handler) {
+    handle(HttpRequest::HttpMethod::HTTP_DELETE, route, std::move(handler));
+}
+
+void WebServer::patch(const std::string &route, RouteHandler handler) {
+    handle(HttpRequest::HttpMethod::HTTP_PATCH, route, std::move(handler));
+}
+
+void WebServer::head(const std::string &route, RouteHandler handler) {
+    handle(HttpRequest::HttpMethod::HTTP_HEAD, route, std::move(handler));
+}
+
+void WebServer::options(const std::string &route, RouteHandler handler) {
+    handle(HttpRequest::HttpMethod::HTTP_OPTIONS, route, std::move(handler));
+}
+
 
 void WebServer::stop() {
     if (!stop_source.request_stop()) {
@@ -124,29 +150,39 @@ void WebServer::on_http(int client_fd) {
         buffer[bytes_read] = '\0';
 
         std::string request_raw(buffer);
-        HttpRequest req = parse_http_request(request_raw);
-        HttpResponse response;
-        if (req.method == "GET") {
-            if (get_handlers.contains(req.path)) {
-                response = get_handlers[req.path](client_fd, req);
-            } else {
-                bool matched = false;
-                for (const auto &[route_prefix, handler]: get_handlers) {
-                    if (!route_prefix.empty() && req.path.starts_with(route_prefix)) {
-                        response = handler(client_fd, req);
-                        matched = true;
-                        break;
-                    }
-                }
+        HttpRequest req = HttpRequest::parse_http_request(request_raw);
 
-                if (!matched) {
-                    response = HttpResponse::NotFound("404 Not Found: " + req.path);
+        if (HttpRequest::is_websocket_upgrade(req)) {
+            std::cout << "WebSocket upgrade requested\n";
+
+            HttpResponse ws_response = HttpResponse::WebSocketSwitchingProtocols(*req.websocket_key);
+            std::string response_str = ws_response.to_string();
+            write(client_fd, response_str.c_str(), response_str.size());
+
+            std::cout << "Handshake complete. Accept key: " << *req.websocket_key << "\n";
+
+            return;
+        }
+
+        HttpResponse response;
+        const auto &handlers = method_handlers[req.method];
+
+        auto exact_match = handlers.find(req.path);
+        if (exact_match != handlers.end()) {
+            response = exact_match->second(client_fd, req);
+        } else {
+            bool matched = false;
+            for (const auto &[route_prefix, handler]: handlers) {
+                if (!route_prefix.empty() && req.path.starts_with(route_prefix)) {
+                    response = handler(client_fd, req);
+                    matched = true;
+                    break;
                 }
             }
-        } else if (req.method == "POST" && post_handlers.contains(req.path)) {
-            response = post_handlers[req.path](client_fd, req);
-        } else {
-            response = HttpResponse::NotFound("404 Not Found: " + req.path);
+
+            if (!matched) {
+                response = HttpResponse::NotFound("404 Not Found: " + req.path);
+            }
         }
 
         std::string resp_str = response.to_string();

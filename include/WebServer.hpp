@@ -25,6 +25,11 @@ public:
 
   void get(const std::string &route, RouteHandler handler);
   void post(const std::string &route, RouteHandler handler);
+  void put(const std::string &route, RouteHandler handler);
+  void del(const std::string &route, RouteHandler handler);
+  void patch(const std::string &route, RouteHandler handler);
+  void head(const std::string &route, RouteHandler handler);
+  void options(const std::string &route, RouteHandler handler);
 
 
   void stop();
@@ -46,8 +51,8 @@ private:
 
   bool is_running = false;
 
-  std::unordered_map<std::string, RouteHandler> get_handlers;
-  std::unordered_map<std::string, RouteHandler> post_handlers;
+  std::unordered_map<HttpRequest::HttpMethod, std::unordered_map<std::string, RouteHandler>> method_handlers;
+  void handle(HttpRequest::HttpMethod method, const std::string& route, RouteHandler handler);
 
   static constexpr int number_of_workers = 8;
 
