@@ -25,15 +25,13 @@ struct HttpRequest {
     std::string body;
     std::map<std::string, std::string> query_params;
 
-    std::optional<std::string> upgrade_header;
-    std::optional<std::string> websocket_key;
-    std::optional<std::string> websocket_version;
-
     static HttpMethod parse_http_method(const std::string& method_str);
     static std::string http_method_to_string(HttpMethod method);
 
     static HttpRequest parse_http_request(const std::string &raw_request);
-    static bool is_websocket_upgrade(const HttpRequest &req);
+    bool is_websocket_upgrade() const;
+
+    std::string get_websocket_key() const;
 };
 
 

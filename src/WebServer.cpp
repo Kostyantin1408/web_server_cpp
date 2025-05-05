@@ -151,15 +151,20 @@ void WebServer::on_http(int client_fd) {
 
         std::string request_raw(buffer);
         HttpRequest req = HttpRequest::parse_http_request(request_raw);
+        if (req.method == HttpRequest::HttpMethod::HTTP_UNKNOWN) {
+            HttpResponse response = HttpResponse::NotFound("Unknown HTTP method");
+            write(client_fd, response.to_string().c_str(), response.to_string().size());
+            return;
+        }
 
-        if (HttpRequest::is_websocket_upgrade(req)) {
+        if (req.is_websocket_upgrade()) {
             std::cout << "WebSocket upgrade requested\n";
 
-            HttpResponse ws_response = HttpResponse::WebSocketSwitchingProtocols(*req.websocket_key);
-            std::string response_str = ws_response.to_string();
-            write(client_fd, response_str.c_str(), response_str.size());
+            HttpResponse ws_response = HttpResponse::WebSocketSwitchingProtocols(req.get_websocket_key());
+            std::string resp_str = ws_response.to_string();
+            write(client_fd, resp_str.c_str(), resp_str.size());
 
-            std::cout << "Handshake complete. Accept key: " << *req.websocket_key << "\n";
+            std::cout << "Handshake complete. Accept key: " << req.get_websocket_key() << "\n";
 
             return;
         }
@@ -169,12 +174,12 @@ void WebServer::on_http(int client_fd) {
 
         auto exact_match = handlers.find(req.path);
         if (exact_match != handlers.end()) {
-            response = exact_match->second(client_fd, req);
+            response = exact_match->second(req);
         } else {
             bool matched = false;
             for (const auto &[route_prefix, handler]: handlers) {
                 if (!route_prefix.empty() && req.path.starts_with(route_prefix)) {
-                    response = handler(client_fd, req);
+                    response = handler(req);
                     matched = true;
                     break;
                 }

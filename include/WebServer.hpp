@@ -12,7 +12,7 @@
 
 class WebServer {
 public:
-  using RouteHandler = std::function<HttpResponse(int, const HttpRequest&)>;
+  using RouteHandler = std::function<HttpResponse(const HttpRequest&)>;
 
   struct Parameters {
     std::string host{};
