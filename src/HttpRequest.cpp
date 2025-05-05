@@ -2,6 +2,7 @@
 #include <sstream>
 #include <algorithm>
 #include <cctype>
+#include <iostream>
 
 static std::string trim(const std::string &str) {
     auto start = str.begin();
@@ -35,32 +36,66 @@ static std::map<std::string, std::string> parse_query_params(const std::string &
 }
 
 HttpRequest::HttpMethod HttpRequest::parse_http_method(const std::string &method_str) {
-    if (method_str == "GET") return HttpMethod::HTTP_GET;
-    if (method_str == "POST") return HttpMethod::HTTP_POST;
-    if (method_str == "PUT") return HttpMethod::HTTP_PUT;
-    if (method_str == "DELETE") return HttpMethod::HTTP_DELETE;
-    if (method_str == "PATCH") return HttpMethod::HTTP_PATCH;
-    if (method_str == "HEAD") return HttpMethod::HTTP_HEAD;
-    if (method_str == "OPTIONS") return HttpMethod::HTTP_OPTIONS;
+    if (method_str == "GET") {
+        return HttpMethod::HTTP_GET;
+    }
+    if (method_str == "POST") {
+        return HttpMethod::HTTP_POST;
+    }
+    if (method_str == "PUT") {
+        return HttpMethod::HTTP_PUT;
+    }
+    if (method_str == "DELETE") {
+        return HttpMethod::HTTP_DELETE;
+    }
+    if (method_str == "PATCH") {
+        return HttpMethod::HTTP_PATCH;
+    }
+    if (method_str == "HEAD") {
+        return HttpMethod::HTTP_HEAD;
+    }
+    if (method_str == "OPTIONS") {
+        return HttpMethod::HTTP_OPTIONS;
+    }
     return HttpMethod::HTTP_UNKNOWN;
 }
 
 std::string HttpRequest::http_method_to_string(HttpMethod method) {
-    switch (method) {
-        case HttpMethod::HTTP_GET: return "GET";
-        case HttpMethod::HTTP_POST: return "POST";
-        case HttpMethod::HTTP_PUT: return "PUT";
-        case HttpMethod::HTTP_DELETE: return "DELETE";
-        case HttpMethod::HTTP_PATCH: return "PATCH";
-        case HttpMethod::HTTP_HEAD: return "HEAD";
-        case HttpMethod::HTTP_OPTIONS: return "OPTIONS";
-        default: return "UNKNOWN";
+    if (method == HttpMethod::HTTP_GET) {
+        return "GET";
     }
+    if (method == HttpMethod::HTTP_POST) {
+        return "POST";
+    }
+    if (method == HttpMethod::HTTP_PUT) {
+        return "PUT";
+    }
+    if (method == HttpMethod::HTTP_DELETE) {
+        return "DELETE";
+    }
+    if (method == HttpMethod::HTTP_PATCH) {
+        return "PATCH";
+    }
+    if (method == HttpMethod::HTTP_HEAD) {
+        return "HEAD";
+    }
+    if (method == HttpMethod::HTTP_OPTIONS) {
+        return "OPTIONS";
+    }
+    return "UNKNOWN";
 }
 
-bool HttpRequest::is_websocket_upgrade(const HttpRequest &req) {
-    return req.upgrade_header && *req.upgrade_header == "websocket"
-           && req.websocket_key.has_value();
+bool HttpRequest::is_websocket_upgrade() const {
+    auto it_upgrade = headers.find("upgrade");
+    auto it_key = headers.find("sec-websocket-key");
+
+    return it_upgrade != headers.end() &&
+           it_key != headers.end() &&
+           it_upgrade->second == "websocket";
+}
+
+std::string HttpRequest::get_websocket_key() const {
+    return headers.at("sec-websocket-key");
 }
 
 HttpRequest HttpRequest::parse_http_request(const std::string &raw_request) {
@@ -101,15 +136,7 @@ HttpRequest HttpRequest::parse_http_request(const std::string &raw_request) {
             }
             std::string key_lower = key;
             std::ranges::transform(key_lower, key_lower.begin(), ::tolower);
-            req.headers[key] = value;
-
-            if (key_lower == "upgrade") {
-                req.upgrade_header = value;
-            } else if (key_lower == "sec-websocket-key") {
-                req.websocket_key = value;
-            } else if (key_lower == "sec-websocket-version") {
-                req.websocket_version = value;
-            }
+            req.headers[key_lower] = value;
         }
     }
 

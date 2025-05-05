@@ -5,6 +5,7 @@
 #include <fstream>
 #include <filesystem>
 #include <iostream>
+#include <algorithm>
 #include <unordered_map>
 
 std::string HttpResponse::to_string() const {
@@ -14,7 +15,9 @@ std::string HttpResponse::to_string() const {
     for (const auto &[key, value]: headers) {
         response << key << ": " << value << "\r\n";
     }
-    response << "Content-Length: " << body.size() << "\r\n";
+    if (headers.find("Content-Length") == headers.end()) {
+        response << "Content-Length: " << body.size() << "\r\n";
+    }
     response << "\r\n";
     response << body;
 
@@ -90,7 +93,9 @@ HttpResponse HttpResponse::FromFile(const std::string &file_path, const std::str
     return res;
 }
 
-static std::string detect_mime(const std::string &ext) {
+static std::string detect_mime(std::string ext) {
+    std::ranges::transform(ext, ext.begin(), ::tolower);
+
     static const std::unordered_map<std::string, std::string> mime_types = {
         {".html", "text/html"},
         {".css", "text/css"},
@@ -117,19 +122,34 @@ HttpResponse HttpResponse::ServeStatic(const std::filesystem::path &base_path, c
     if (!relative.empty() && relative[0] == '/')
         relative.erase(0, 1);
 
-    std::filesystem::path full_path = base_path / relative;
+    std::filesystem::path requested_path = base_path / relative;
 
+    std::error_code ec;
+    std::filesystem::path normalized_base = weakly_canonical(base_path, ec);
+    std::filesystem::path normalized_path = weakly_canonical(requested_path, ec);
 
-    std::cerr << "Serving static file: " << absolute(full_path) << std::endl;
-
-    if (!exists(full_path) || is_directory(full_path)) {
-        return NotFound("File not found: " + full_path.string());
+    if (ec) {
+        return NotFound("Canonicalization error.");
     }
 
-    std::string ext = full_path.extension().string();
+    auto base_it = normalized_base.begin();
+    auto path_it = normalized_path.begin();
+    for (; base_it != normalized_base.end() && path_it != normalized_path.end(); ++base_it, ++path_it) {
+        if (*base_it != *path_it) {
+            return NotFound("Access denied.");
+        }
+    }
+
+    if (!exists(normalized_path) || is_directory(normalized_path)) {
+        return NotFound("File not found: " + normalized_path.string());
+    }
+
+    std::string ext = normalized_path.extension().string();
+    std::ranges::transform(ext, ext.begin(), ::tolower);
     std::string mime = detect_mime(ext);
 
-    return FromFile(full_path.string(), mime);
+    std::cerr << "Serving static file: " << normalized_path << std::endl;
+    return FromFile(normalized_path.string(), mime);
 }
 
 HttpResponse HttpResponse::WebSocketSwitchingProtocols(const std::string &websocket_key) {
