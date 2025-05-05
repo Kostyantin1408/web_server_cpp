@@ -158,7 +158,7 @@ HttpResponse HttpResponse::WebSocketSwitchingProtocols(const std::string &websoc
     res.status_text = "Switching Protocols";
     res.set_header("Upgrade", "websocket");
     res.set_header("Connection", "Upgrade");
-    res.set_header("Sec-WebSocket-Accept", compute_accept_key(websocket_key));
+    res.set_header("Sec-WebSocket-Accept", make_websocket_accept(websocket_key));
     res.body = "";
     return res;
 }

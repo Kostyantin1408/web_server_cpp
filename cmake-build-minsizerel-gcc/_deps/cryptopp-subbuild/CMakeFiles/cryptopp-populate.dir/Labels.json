@@ -1,0 +1,46 @@
+{
+	"sources" : 
+	[
+		{
+			"file" : "/Users/kostyantin/web_server_cpp/cmake-build-minsizerel-gcc/_deps/cryptopp-subbuild/CMakeFiles/cryptopp-populate"
+		},
+		{
+			"file" : "/Users/kostyantin/web_server_cpp/cmake-build-minsizerel-gcc/_deps/cryptopp-subbuild/CMakeFiles/cryptopp-populate.rule"
+		},
+		{
+			"file" : "/Users/kostyantin/web_server_cpp/cmake-build-minsizerel-gcc/_deps/cryptopp-subbuild/CMakeFiles/cryptopp-populate-complete.rule"
+		},
+		{
+			"file" : "/Users/kostyantin/web_server_cpp/cmake-build-minsizerel-gcc/_deps/cryptopp-subbuild/cryptopp-populate-prefix/src/cryptopp-populate-stamp/cryptopp-populate-build.rule"
+		},
+		{
+			"file" : "/Users/kostyantin/web_server_cpp/cmake-build-minsizerel-gcc/_deps/cryptopp-subbuild/cryptopp-populate-prefix/src/cryptopp-populate-stamp/cryptopp-populate-configure.rule"
+		},
+		{
+			"file" : "/Users/kostyantin/web_server_cpp/cmake-build-minsizerel-gcc/_deps/cryptopp-subbuild/cryptopp-populate-prefix/src/cryptopp-populate-stamp/cryptopp-populate-download.rule"
+		},
+		{
+			"file" : "/Users/kostyantin/web_server_cpp/cmake-build-minsizerel-gcc/_deps/cryptopp-subbuild/cryptopp-populate-prefix/src/cryptopp-populate-stamp/cryptopp-populate-install.rule"
+		},
+		{
+			"file" : "/Users/kostyantin/web_server_cpp/cmake-build-minsizerel-gcc/_deps/cryptopp-subbuild/cryptopp-populate-prefix/src/cryptopp-populate-stamp/cryptopp-populate-mkdir.rule"
+		},
+		{
+			"file" : "/Users/kostyantin/web_server_cpp/cmake-build-minsizerel-gcc/_deps/cryptopp-subbuild/cryptopp-populate-prefix/src/cryptopp-populate-stamp/cryptopp-populate-patch.rule"
+		},
+		{
+			"file" : "/Users/kostyantin/web_server_cpp/cmake-build-minsizerel-gcc/_deps/cryptopp-subbuild/cryptopp-populate-prefix/src/cryptopp-populate-stamp/cryptopp-populate-test.rule"
+		},
+		{
+			"file" : "/Users/kostyantin/web_server_cpp/cmake-build-minsizerel-gcc/_deps/cryptopp-subbuild/cryptopp-populate-prefix/src/cryptopp-populate-stamp/cryptopp-populate-update.rule"
+		}
+	],
+	"target" : 
+	{
+		"labels" : 
+		[
+			"cryptopp-populate"
+		],
+		"name" : "cryptopp-populate"
+	}
+}
