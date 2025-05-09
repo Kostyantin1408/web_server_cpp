@@ -1,24 +1,34 @@
 #include "WebServer.hpp"
+#include <filesystem>
+#include "encryption.hpp"
 
-#include <cstring>
-#include <iostream>
-#include <unistd.h>
+
 
 int main() {
-  WebServer server{{"127.0.0.1", 8080}};
-  server.get("/", [](int client_fd, const HttpRequest &req) {
-    for (const auto &[key, val] : req.headers) {
-      std::cout << key << ": " << val << std::endl;
-    }
-    const char *response = "HTTP/1.1 200 OK\r\n"
-                           "Content-Type: text/plain\r\n"
-                           "Content-Length: 6\r\n"
-                           "\r\n"
-                           "hello!";
-    write(client_fd, response, std::strlen(response));
-  });
 
-  server.run();
-  server.wait_for_exit();
-  return 0;
+//    std::string client_key = "dGhlIHNhbXBsZSBub25jZQ==";
+//    std::string accept   = compute_accept_key(client_key);
+//    std::cout << "Sec-WebSocket-Accept: " << accept << "\n";
+//
+
+    WebServer server{{"127.0.0.1", 8080}};
+
+    const std::filesystem::path base_assets_path = std::filesystem::absolute("assets");
+
+    server.get("/", [base_assets_path](const HttpRequest &) {
+        return HttpResponse::FromFile((base_assets_path / "index.html").string(), "text/html");
+    });
+
+    server.get("/assets", [base_assets_path](const HttpRequest& req) {
+        return HttpResponse::ServeStatic(base_assets_path, req, "/assets");
+    });
+
+    server.post("/test", [](const HttpRequest& req) {
+       std::cout << "[POST /test] Received body:\n" << req.body << std::endl;
+
+       return HttpResponse::Text("Received:\n" + req.body, 200);
+   });
+
+    server.run();
+    std::this_thread::sleep_for(std::chrono::minutes(10));
 }
