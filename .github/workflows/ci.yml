@@ -15,11 +15,12 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y build-essential cmake libgtest-dev
           cd /usr/src/googletest
-          mkdir build && cd build
+          mkdir -p build && cd build
           cmake .. -DCMAKE_BUILD_TYPE=Release
           make
           sudo cp *.a /usr/lib/
       - name: Configure
+        working-directory: ${{ github.workspace }}
         run: |
           mkdir -p build
           cd build
