@@ -25,14 +25,9 @@ TEST(OnHttpTest, DispatchesGetHandler) {
     WebServer server(makeParams());
     bool called = false;
 
-    server.get("/hello", [&](int client_fd, HttpRequest req) -> HttpResponse {
-        called = true;
-        return {
-            .status_code = 200,
-            .status_text = "OK",
-            .headers = {{"Content-Type", "text/plain"}},
-            .body = "Hello"
-        };
+    server.get("/hello", [&](const HttpRequest& req) {
+      called = true;
+      return HttpResponse::Text("Hello", 200);
     });
 
     int fds[2];
@@ -61,14 +56,9 @@ TEST(OnHttpTest, DispatchesPostHandler) {
     WebServer server(makeParams());
     bool called = false;
 
-    server.post("/submit", [&](int client_fd, HttpRequest req) -> HttpResponse {
-        called = true;
-        return {
-            .status_code = 200,
-            .status_text = "OK",
-            .headers = {{"Content-Type", "text/plain"}},
-            .body = "Posted"
-        };
+    server.post("/submit", [&](const HttpRequest& req) {
+      called = true;
+      return HttpResponse::Text("Posted", 200);
     });
 
     int fds[2];
