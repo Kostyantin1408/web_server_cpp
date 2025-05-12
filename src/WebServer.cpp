@@ -7,6 +7,9 @@
 #include <iostream>
 #include <mutex>
 #include <utility>
+#include <bits/ranges_algo.h>
+
+#include "HttpRequestReader.hpp"
 
 
 WebServer::WebServer(Parameters parameters_) : parameters{std::move(parameters_)} {
@@ -143,30 +146,27 @@ void WebServer::wait_for_exit() {
 
 
 void WebServer::on_http(int client_fd) {
-    char buffer[1024];
-    ssize_t bytes_read = read(client_fd, buffer, sizeof(buffer) - 1);
+    bool keep_alive = true;
 
-    if (bytes_read > 0) {
-        buffer[bytes_read] = '\0';
+    while (keep_alive) {
+        HttpRequestReader reader(client_fd);
+        auto raw_request_opt = reader.read_full_request();
+        if (!raw_request_opt) break;
 
-        std::string request_raw(buffer);
-        HttpRequest req = HttpRequest::parse_http_request(request_raw);
+        const std::string &raw_request = *raw_request_opt;
+        HttpRequest req = HttpRequest::parse_http_request(raw_request);
         if (req.method == HttpRequest::HttpMethod::HTTP_UNKNOWN) {
             HttpResponse response = HttpResponse::NotFound("Unknown HTTP method");
-            write(client_fd, response.to_string().c_str(), response.to_string().size());
-            return;
+            std::string resp_str = response.to_string();
+            write(client_fd, resp_str.c_str(), resp_str.size());
+            break;
         }
 
         if (req.is_websocket_upgrade()) {
-            std::cout << "WebSocket upgrade requested\n";
-
             HttpResponse ws_response = HttpResponse::WebSocketSwitchingProtocols(req.get_websocket_key());
             std::string resp_str = ws_response.to_string();
             write(client_fd, resp_str.c_str(), resp_str.size());
-
-            std::cout << "Handshake complete. Accept key: " << req.get_websocket_key() << "\n";
-
-            return;
+            break;
         }
 
         HttpResponse response;
@@ -188,6 +188,16 @@ void WebServer::on_http(int client_fd) {
             if (!matched) {
                 response = HttpResponse::NotFound("404 Not Found: " + req.path);
             }
+        }
+
+        auto conn_it = req.headers.find("connection");
+        std::string conn_value = (conn_it != req.headers.end()) ? conn_it->second : "";
+        std::ranges::transform(conn_value, conn_value.begin(), ::tolower);
+
+        if (conn_value == "close" || req.version != "HTTP/1.1") {
+            keep_alive = false;
+        } else {
+            response.set_header("Connection", "keep-alive");
         }
 
         std::string resp_str = response.to_string();
