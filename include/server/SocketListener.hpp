@@ -25,17 +25,17 @@ public:
 
   void add_socket(int fd, Callback cb, uint32_t events = EPOLLIN | EPOLLET);
 
-  void removeSocket(int fd);
+  void remove_socket(int fd);
 
   void run();
 
   void stop();
 
 private:
-  void makeNonBlocking(int fd);
+  void make_non_blocking(int fd);
 
   Parameters parameters_;
-  int epollFd_{-1};
+  int epoll_fd_{-1};
   std::vector<epoll_event> events_;
   std::unordered_map<int, Callback> callbacks_;
   bool running_{false};
