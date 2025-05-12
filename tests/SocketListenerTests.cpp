@@ -10,7 +10,7 @@
 
 class SocketListenerTest : public ::testing::Test {
 protected:
-    SocketListener listener{10, 0};
+    SocketListener listener{{10, 0}};
 
     bool isNonBlocking(int fd) {
         int flags = fcntl(fd, F_GETFL, 0);
@@ -78,15 +78,11 @@ TEST_F(SocketListenerTest, AddInvalidFd_ThrowsRuntimeError) {
     EXPECT_THROW(listener.add_socket(badfd, [](int){}, EPOLLIN), std::runtime_error);
 }
 
-// Additional tests
-
 TEST_F(SocketListenerTest, Stop_WithoutRun_DoesNotCrash) {
-    // Calling stop before run should be safe
     EXPECT_NO_THROW(listener.stop());
 }
 
 TEST_F(SocketListenerTest, Run_WithNoSockets_ExitsOnStop) {
-    // run should block until stop is called
     std::thread runner([&]() { listener.run(); });
     std::this_thread::sleep_for(std::chrono::milliseconds(50));
     listener.stop();
@@ -96,7 +92,6 @@ TEST_F(SocketListenerTest, Run_WithNoSockets_ExitsOnStop) {
 TEST_F(SocketListenerTest, HandlesEPOLLOUTEvent) {
     int pipefd[2];
     ASSERT_EQ(pipe(pipefd), 0);
-    // Watch write end for writability
     bool called = false;
     listener.add_socket(pipefd[1], [&](int){ called = true; listener.stop(); }, EPOLLOUT);
 
@@ -139,7 +134,6 @@ TEST_F(SocketListenerTest, AddExistingSocket_ReplacesCallback) {
 
     bool firstCalled = false, secondCalled = false;
     listener.add_socket(efd, [&](int){ firstCalled = true; }, EPOLLIN);
-    // Override callback
     listener.add_socket(efd, [&](int){ secondCalled = true; listener.stop(); }, EPOLLIN);
 
     std::thread runner([&]() { listener.run(); });
@@ -156,7 +150,6 @@ TEST_F(SocketListenerTest, AddExistingSocket_ReplacesCallback) {
 
 TEST_F(SocketListenerTest, RemovingNonexistentSocket_DoesNothing) {
     int fakefd = 9999;
-    // Should not throw
     EXPECT_NO_THROW(listener.removeSocket(fakefd));
 }
 

@@ -13,9 +13,13 @@
 
 class SocketListener {
 public:
+  struct Parameters {
+    int max_events{16};
+    int epoll_flags{0};
+  };
   using Callback = std::function<void(int)>;
 
-  SocketListener(int max_events = 16, int epoll_flags = 0);
+  explicit SocketListener(Parameters parameters);
 
   ~SocketListener();
 
@@ -28,13 +32,13 @@ public:
   void stop();
 
 private:
+  void makeNonBlocking(int fd);
+
+  Parameters parameters_;
   int epollFd_{-1};
-  int maxEvents_;
   std::vector<epoll_event> events_;
   std::unordered_map<int, Callback> callbacks_;
   bool running_{false};
-
-  static void makeNonBlocking(int fd);
 };
 
 #endif // SOCKETLISTENER_HPP

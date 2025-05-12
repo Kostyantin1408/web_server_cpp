@@ -1,16 +1,16 @@
 #include <server/SocketListener.hpp>
 
-SocketListener::SocketListener(int max_events, int epoll_flags) : maxEvents_(max_events) {
-  epollFd_ = epoll_create1(epoll_flags);
+SocketListener::SocketListener(Parameters parameters) : parameters_(parameters) {
+  epollFd_ = epoll_create1(parameters_.epoll_flags);
   if (epollFd_ < 0) {
     throw std::runtime_error(std::string("epoll_create failed: ") + strerror(errno));
   }
-  events_.resize(maxEvents_);
+  events_.resize(parameters_.max_events);
 }
 
 SocketListener::~SocketListener() { close(epollFd_); }
 
-void SocketListener::add_socket(int fd, Callback cb, uint32_t events) {
+void SocketListener::add_socket(const int fd, Callback cb, const uint32_t events) {
   makeNonBlocking(fd);
 
   epoll_event ev;
@@ -37,7 +37,7 @@ void SocketListener::run() {
   running_ = true;
   const int timeoutMs = 1000;
   while (running_) {
-    const int n = epoll_wait(epollFd_, events_.data(), maxEvents_, timeoutMs);
+    const int n = epoll_wait(epollFd_, events_.data(), parameters_.max_events, timeoutMs);
     if (n < 0) {
       if (errno == EINTR)
         continue;
