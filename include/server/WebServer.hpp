@@ -3,10 +3,12 @@
 
 #include "HttpRequest.hpp"
 #include "HttpResponse.hpp"
+#include "WSApplication.hpp"
+
+#include <condition_variable>
 #include <functional>
 #include <netinet/in.h>
 #include <queue>
-#include <condition_variable>
 #include <stop_token>
 #include <thread>
 
@@ -19,7 +21,16 @@ public:
     int port{};
   };
 
+  struct WSParams {
+    std::function<void(WebSocket *)> on_open = nullptr;
+    std::function<void(WebSocket *)> on_message = nullptr;
+  };
+
   explicit WebServer(Parameters parameters_);
+
+  WSApplication& WSApp();
+
+  void simulate_on_open();
 
   void run();
 
@@ -60,6 +71,8 @@ private:
   std::queue<int> tasks_queue;
   std::mutex mtx;
   std::condition_variable cv;
+
+  WSApplication ws_app;
 
   bool shutdownFlag = false;
 };

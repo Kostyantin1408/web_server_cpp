@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
-#include <WebServer.hpp>
-#include <HttpRequest.hpp>
+#include <server/WebServer.hpp>
+#include <server/HttpRequest.hpp>
 #include <sys/socket.h>
 #include <unistd.h>
 #include <cstring>
