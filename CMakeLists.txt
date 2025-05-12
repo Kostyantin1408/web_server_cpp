@@ -16,11 +16,27 @@ FetchContent_MakeAvailable(googletest)
 
 
 add_executable(web_server main.cpp src/WebServer.cpp src/HttpRequest.cpp
-        include/HttpResponse.hpp
-        src/HttpResponse.cpp)
+        include/HttpResponse.hpp include/HttpRequest.hpp include/WebServer.hpp include/sha1.hpp include/encryption.hpp
+        src/HttpResponse.cpp
+        src/HttpRequestReader.cpp
+        include/HttpRequestReader.hpp)
+
 target_include_directories(web_server PRIVATE include)
 target_link_libraries(web_server pthread)
 
-add_executable(web_server_tests tests/main.cpp src/WebServer.cpp src/HttpRequest.cpp src/HttpResponse.cpp)
-target_include_directories(web_server_tests PRIVATE include)
-target_link_libraries(web_server_tests PRIVATE GTest::gtest GTest::gmock pthread)
+add_executable(web_server_integration_tests tests/main.cpp src/WebServer.cpp src/HttpRequest.cpp src/HttpResponse.cpp
+        src/HttpRequestReader.cpp)
+target_include_directories(web_server_integration_tests PRIVATE include)
+target_link_libraries(web_server_integration_tests PRIVATE GTest::gtest GTest::gmock pthread)
+
+add_executable(web_server_unit_tests tests/unit_tests.cpp src/WebServer.cpp src/HttpRequest.cpp src/HttpResponse.cpp
+        src/HttpRequestReader.cpp
+)
+target_include_directories(web_server_unit_tests PRIVATE include)
+target_link_libraries(web_server_unit_tests PRIVATE GTest::gtest GTest::gmock pthread)
+
+add_executable(web_server_benchmark_tests tests/benchmark_tests.cpp src/WebServer.cpp src/HttpRequest.cpp src/HttpResponse.cpp
+        src/HttpRequestReader.cpp
+)
+target_include_directories(web_server_benchmark_tests PRIVATE include)
+target_link_libraries(web_server_benchmark_tests PRIVATE GTest::gtest GTest::gmock pthread)

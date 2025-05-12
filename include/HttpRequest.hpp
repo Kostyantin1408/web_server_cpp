@@ -3,7 +3,6 @@
 
 #include <string>
 #include <map>
-#include <optional>
 
 struct HttpRequest {
     enum class HttpMethod {
@@ -29,9 +28,9 @@ struct HttpRequest {
     static std::string http_method_to_string(HttpMethod method);
 
     static HttpRequest parse_http_request(const std::string &raw_request);
-    bool is_websocket_upgrade() const;
+    [[nodiscard]] bool is_websocket_upgrade() const;
 
-    std::string get_websocket_key() const;
+    [[nodiscard]] std::string get_websocket_key() const;
 };
 
 

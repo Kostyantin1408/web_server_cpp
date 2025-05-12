@@ -100,13 +100,21 @@ std::string HttpRequest::get_websocket_key() const {
 
 HttpRequest HttpRequest::parse_http_request(const std::string &raw_request) {
     HttpRequest req;
-    std::istringstream stream(raw_request);
+
+    size_t header_end_pos = raw_request.find("\r\n\r\n");
+    if (header_end_pos == std::string::npos) {
+        return req;
+    }
+
+    std::string headers_part = raw_request.substr(0, header_end_pos + 4);
+    std::string body_part = raw_request.substr(header_end_pos + 4);
+
+    std::istringstream stream(headers_part);
     std::string line;
 
     if (!std::getline(stream, line) || line.empty()) {
         return req;
     }
-
     std::istringstream req_line(line);
     std::string method_str;
     req_line >> method_str;
@@ -115,7 +123,6 @@ HttpRequest HttpRequest::parse_http_request(const std::string &raw_request) {
     std::string full_path;
     req_line >> full_path;
     size_t qmark = full_path.find('?');
-
     if (qmark != std::string::npos) {
         req.path = full_path.substr(0, qmark);
         std::string query_string = full_path.substr(qmark + 1);
@@ -123,31 +130,59 @@ HttpRequest HttpRequest::parse_http_request(const std::string &raw_request) {
     } else {
         req.path = full_path;
     }
-
     req_line >> req.version;
 
     while (std::getline(stream, line) && line != "\r") {
         size_t colon = line.find(':');
-        if (colon != std::string::npos) {
-            std::string key = trim(line.substr(0, colon));
-            std::string value = trim(line.substr(colon + 1));
-            if (!value.empty() && value.back() == '\r') {
-                value.pop_back();
-            }
-            std::string key_lower = key;
-            std::ranges::transform(key_lower, key_lower.begin(), ::tolower);
-            req.headers[key_lower] = value;
+        if (colon == std::string::npos) continue;
+
+        std::string key = trim(line.substr(0, colon));
+        std::string value = trim(line.substr(colon + 1));
+        if (!value.empty() && value.back() == '\r') {
+            value.pop_back();
         }
+
+        std::string key_lower = key;
+        std::ranges::transform(key_lower, key_lower.begin(), ::tolower);
+        std::string value_lower = value;
+        std::ranges::transform(value_lower, value_lower.begin(), ::tolower);
+
+        req.headers[key_lower] = value_lower;
     }
 
-    std::ostringstream body_stream;
-    while (std::getline(stream, line)) {
-        body_stream << line << "\n";
-    }
-    req.body = body_stream.str();
-    if (!req.body.empty() && req.body.back() == '\n') {
-        req.body.pop_back();
-    }
+    if (req.headers.find("transfer-encoding") != req.headers.end() &&
+        req.headers["transfer-encoding"] == "chunked") {
 
+        std::istringstream body_stream_raw(body_part);
+        std::ostringstream body_stream_decoded;
+
+        while (true) {
+            std::string size_line;
+            std::getline(body_stream_raw, size_line);
+            if (!size_line.empty() && size_line.back() == '\r') {
+                size_line.pop_back();
+            }
+
+            size_t chunk_size = 0;
+            std::istringstream chunk_size_stream(size_line);
+            chunk_size_stream >> std::hex >> chunk_size;
+            if (chunk_size == 0) {
+                break;
+            }
+
+            std::string chunk(chunk_size, '\0');
+            body_stream_raw.read(&chunk[0], chunk_size);
+            body_stream_decoded << chunk;
+
+            body_stream_raw.get();
+            body_stream_raw.get();
+        }
+
+        req.body = body_stream_decoded.str();
+    } else {
+        req.body = body_part;
+    }
     return req;
 }
+
+
