@@ -1,13 +1,11 @@
 #include <WebServer.hpp>
 #include <HttpRequest.hpp>
+#include <HttpResponse.hpp>
 #include <sys/socket.h>
 #include <unistd.h>
 #include <cstring>
 #include <encryption.hpp>
 #include <iostream>
-#include <mutex>
-#include <utility>
-
 
 WebServer::WebServer(Parameters parameters_) : parameters{std::move(parameters_)} {
     listen(parameters.port);
@@ -141,56 +139,50 @@ void WebServer::wait_for_exit() {
     }
 }
 
+HttpResponse WebServer::dispatch_request(const HttpRequest &req) {
+  auto &byMethod = method_handlers[req.method];
+  auto itExact  = byMethod.find(req.path);
+  if (itExact != byMethod.end()) {
+    return itExact->second(req);
+  }
+
+  std::vector<std::string> allowed;
+  for (auto & [method, handlers] : method_handlers) {
+    if (handlers.count(req.path)) {
+      allowed.push_back(HttpRequest::http_method_to_string(method));
+    }
+  }
+  if (!allowed.empty()) {
+    std::string clientMethod = HttpRequest::http_method_to_string(req.method);
+    HttpResponse r = HttpResponse::Text(
+        "Method `" + clientMethod +
+        "` is not supported for `" + req.path + "`.", 405);
+    std::string allowHeader;
+    for (size_t i = 0; i < allowed.size(); ++i) {
+      allowHeader += allowed[i];
+      if (i + 1 < allowed.size()) allowHeader += ", ";
+    }
+    r.set_header("Allow", allowHeader);
+    return r;
+  }
+
+  return HttpResponse::NotFound("Resource not found: " + req.path);
+}
 
 void WebServer::on_http(int client_fd) {
-    char buffer[1024];
-    ssize_t bytes_read = read(client_fd, buffer, sizeof(buffer) - 1);
+  char buffer[4096];
+  ssize_t n = read(client_fd, buffer, sizeof(buffer) - 1);
+  if (n <= 0) {
+    close(client_fd);
+    return;
+  }
+  buffer[n] = '\0';
+  std::string raw(buffer);
 
-    if (bytes_read > 0) {
-        buffer[bytes_read] = '\0';
+  HttpRequest req = HttpRequest::parse_http_request(raw);
 
-        std::string request_raw(buffer);
-        HttpRequest req = HttpRequest::parse_http_request(request_raw);
-        if (req.method == HttpRequest::HttpMethod::HTTP_UNKNOWN) {
-            HttpResponse response = HttpResponse::NotFound("Unknown HTTP method");
-            write(client_fd, response.to_string().c_str(), response.to_string().size());
-            return;
-        }
+  HttpResponse response = dispatch_request(req);
 
-        if (req.is_websocket_upgrade()) {
-            std::cout << "WebSocket upgrade requested\n";
-
-            HttpResponse ws_response = HttpResponse::WebSocketSwitchingProtocols(req.get_websocket_key());
-            std::string resp_str = ws_response.to_string();
-            write(client_fd, resp_str.c_str(), resp_str.size());
-
-            std::cout << "Handshake complete. Accept key: " << req.get_websocket_key() << "\n";
-
-            return;
-        }
-
-        HttpResponse response;
-        const auto &handlers = method_handlers[req.method];
-
-        auto exact_match = handlers.find(req.path);
-        if (exact_match != handlers.end()) {
-            response = exact_match->second(req);
-        } else {
-            bool matched = false;
-            for (const auto &[route_prefix, handler]: handlers) {
-                if (!route_prefix.empty() && req.path.starts_with(route_prefix)) {
-                    response = handler(req);
-                    matched = true;
-                    break;
-                }
-            }
-
-            if (!matched) {
-                response = HttpResponse::NotFound("404 Not Found: " + req.path);
-            }
-        }
-
-        std::string resp_str = response.to_string();
-        write(client_fd, resp_str.c_str(), resp_str.size());
-    }
+  std::string out = response.to_string();
+  write(client_fd, out.c_str(), out.size());
 }

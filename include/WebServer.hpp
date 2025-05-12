@@ -38,6 +38,8 @@ public:
 
   void on_http(int client_fd);
 
+  HttpResponse dispatch_request(const HttpRequest &req);
+
 private:
   void listen(int port);
   void main_thread_acceptor(const std::stop_token& token);
