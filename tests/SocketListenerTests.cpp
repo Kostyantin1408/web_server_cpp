@@ -26,7 +26,7 @@ TEST_F(SocketListenerTest, MakeNonBlocking_SetsFdNonBlocking) {
     listener.add_socket(pipefd[0], [](int){}, EPOLLIN);
     EXPECT_TRUE(isNonBlocking(pipefd[0]));
 
-    listener.removeSocket(pipefd[0]);
+    listener.remove_socket(pipefd[0]);
     close(pipefd[0]);
     close(pipefd[1]);
 }
@@ -50,7 +50,7 @@ TEST_F(SocketListenerTest, Run_InvokesCallbackOnEvent) {
     runner.join();
 
     EXPECT_TRUE(called);
-    listener.removeSocket(efd);
+    listener.remove_socket(efd);
     close(efd);
 }
 
@@ -60,7 +60,7 @@ TEST_F(SocketListenerTest, RemoveSocket_DeregistersCallback) {
 
     bool called = false;
     listener.add_socket(efd, [&](int){ called = true; listener.stop(); }, EPOLLIN);
-    listener.removeSocket(efd);
+    listener.remove_socket(efd);
 
     std::thread runner([&]() { listener.run(); });
     uint64_t one = 1;
@@ -99,7 +99,7 @@ TEST_F(SocketListenerTest, HandlesEPOLLOUTEvent) {
     runner.join();
 
     EXPECT_TRUE(called);
-    listener.removeSocket(pipefd[1]);
+    listener.remove_socket(pipefd[1]);
     close(pipefd[0]);
     close(pipefd[1]);
 }
@@ -122,8 +122,8 @@ TEST_F(SocketListenerTest, MultipleSockets_InvokesAllCallbacks) {
     runner.join();
 
     EXPECT_EQ(count, 2);
-    listener.removeSocket(efd1);
-    listener.removeSocket(efd2);
+    listener.remove_socket(efd1);
+    listener.remove_socket(efd2);
     close(efd1);
     close(efd2);
 }
@@ -144,13 +144,13 @@ TEST_F(SocketListenerTest, AddExistingSocket_ReplacesCallback) {
 
     EXPECT_FALSE(firstCalled);
     EXPECT_TRUE(secondCalled);
-    listener.removeSocket(efd);
+    listener.remove_socket(efd);
     close(efd);
 }
 
 TEST_F(SocketListenerTest, RemovingNonexistentSocket_DoesNothing) {
     int fakefd = 9999;
-    EXPECT_NO_THROW(listener.removeSocket(fakefd));
+    EXPECT_NO_THROW(listener.remove_socket(fakefd));
 }
 
 int main(int argc, char **argv) {
