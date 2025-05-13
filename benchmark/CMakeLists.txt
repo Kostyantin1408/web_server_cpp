@@ -21,7 +21,6 @@ FetchContent_MakeAvailable(crow)
 
 add_executable(web_server_benchmark_tests benchmark_runner.cpp custom_server.hpp httplib_server.hpp
         utils.hpp
-        boost_server.hpp
         crow_server.hpp)
 
 target_link_libraries(web_server_benchmark_tests PRIVATE httplib server-core Crow::Crow)
