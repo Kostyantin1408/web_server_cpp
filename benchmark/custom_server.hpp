@@ -13,7 +13,6 @@ inline std::unique_ptr<WebServer> launch_custom_server(int port = 8080) {
         return HttpResponse::Text("OK");
     });
     server->run();
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
     return server;
 }
 

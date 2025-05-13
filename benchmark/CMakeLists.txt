@@ -3,11 +3,26 @@ include(FetchContent)
 FetchContent_Declare(
         httplib
         GIT_REPOSITORY https://github.com/yhirose/cpp-httplib.git
-        GIT_TAG v0.15.3
+        GIT_TAG v0.20.1
 )
 
 FetchContent_MakeAvailable(httplib)
 
+find_package(Boost REQUIRED COMPONENTS system)
+
+include(FetchContent)
+
+FetchContent_Declare(
+        crow
+        GIT_REPOSITORY https://github.com/CrowCpp/crow.git
+        GIT_TAG v1.2.1
+)
+
+FetchContent_MakeAvailable(crow)
+
 add_executable(web_server_benchmark_tests benchmark_runner.cpp custom_server.hpp httplib_server.hpp
-        utils.hpp)
-target_link_libraries(web_server_benchmark_tests PRIVATE httplib custom-web-server)
+        utils.hpp
+        boost_server.hpp
+        crow_server.hpp)
+
+target_link_libraries(web_server_benchmark_tests PRIVATE httplib custom-web-server Boost::system Crow::Crow)

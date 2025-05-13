@@ -132,7 +132,6 @@ void WebServer::stop() {
     wait_for_exit();
 
     close(server_fd);
-    std::cout << "Server stopped." << std::endl;
 }
 
 void WebServer::wait_for_exit() {
