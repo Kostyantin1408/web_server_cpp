@@ -19,6 +19,7 @@ public:
   struct Parameters {
     std::string host{};
     int port{};
+    WSApplication::Parameters ws_app{};
   };
 
   struct WSParams {
@@ -72,7 +73,7 @@ private:
   std::mutex mtx;
   std::condition_variable cv;
 
-  WSApplication ws_app;
+  WSApplication ws_app_;
 
   bool shutdownFlag = false;
 };

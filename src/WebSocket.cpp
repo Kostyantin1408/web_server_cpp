@@ -1,23 +1,36 @@
+#include <netinet/in.h>
 #include <server/WebSocket.hpp>
 #include <server/sha1.hpp>
 #include <sys/socket.h>
 
-WebSocket::WebSocket(const int socket_fd)
-    : socket_fd_{socket_fd}, state_{State::CONNECTING}, parser_(new websocket_parser{}),
-      settings_{new websocket_parser_settings{}} {
-  websocket_parser_init(parser_.get());
-  websocket_parser_settings_init(settings_.get());
+WebSocket::WebSocket(const int socket_fd) : socket_fd_{socket_fd}, state_{State::CONNECTING} {}
 
-  // hook up our static callbacks
-  settings_->on_frame_header = &WebSocket::on_frame_header_cb;
-  settings_->on_frame_body = &WebSocket::on_frame_body_cb;
-  settings_->on_frame_end = &WebSocket::on_frame_end_cb;
+WebSocket::WebSocket(WebSocket &&other) noexcept
+    : socket_fd_{std::exchange(other.socket_fd_, -1)}, state_{other.state_},
+      message_handler_{std::move(other.message_handler_)} {
+  other.state_ = State::CLOSED;
+  other.message_handler_ = nullptr;
+}
 
-  // allow callbacks to find this instance
-  parser_->data = this;
+WebSocket &WebSocket::operator=(WebSocket &&other) noexcept {
+  if (this != &other) {
+    if (socket_fd_ != -1) {
+      close(socket_fd_);
+    }
+    socket_fd_ = std::exchange(other.socket_fd_, -1);
+    state_ = other.state_;
+    message_handler_ = std::move(other.message_handler_);
+    other.state_ = State::CLOSED;
+    other.message_handler_ = nullptr;
+  }
+  return *this;
 }
 
 WebSocket::~WebSocket() { close(socket_fd_); }
+
+int WebSocket::get_fd() const { return socket_fd_; }
+
+void WebSocket::send(const std::string &message, OpCode opcode) {}
 
 std::string WebSocket::accept_handshake(const std::string &websocket_key) {
   Chocobo1::SHA1 sha;
@@ -28,98 +41,119 @@ std::string WebSocket::accept_handshake(const std::string &websocket_key) {
   return Chocobo1::base64_encode(std::string_view{reinterpret_cast<const char *>(digest.data()), digest.size()});
 }
 
-void WebSocket::read_frame(std::string &out_payload, OpCode &out_opcode) {
-  while (true) {
-    {
-      std::lock_guard<std::mutex> lock(queue_mutex_);
-      if (!frame_queue_.empty()) {
-        auto f = std::move(frame_queue_.front());
-        frame_queue_.pop();
-        out_opcode = f.opcode;
-        out_payload = std::string(f.body.begin(), f.body.end());
-        return;
-      }
-    }
-
-    char buf[4096];
-    ssize_t n = ::recv(socket_fd_, buf, sizeof(buf), 0);
-    if (n <= 0) {
-      state_ = State::CLOSED;
-      throw std::runtime_error("socket closed or error");
-    }
-    // feed bytes into parser
-    websocket_parser_execute(parser_.get(), settings_.get(), buf, n);
-  }
+void WebSocket::read_frame(std::string &message, OpCode &opcode) const {
+  std::vector<uint8_t> raw_message;
+  uint8_t op_code;
+  get_websocket_frame(raw_message, op_code);
+  // TODO: make std::variant<string_view, std::vector<uint8_t>> for messages like images
+  message = std::string(reinterpret_cast<const char *>(raw_message.data()), raw_message.size());
+  opcode = to_opcode(op_code);
 }
 
-void WebSocket::send_frame(const std::string &payload, OpCode opcode) {
-  // build the frame
-  size_t frame_size = websocket_calc_frame_size(
-      static_cast<websocket_flags>(static_cast<uint8_t>(opcode) | WS_FINAL_FRAME), payload.size());
-  std::vector<char> frame(frame_size);
-  size_t built =
-      websocket_build_frame(frame.data(), static_cast<websocket_flags>(static_cast<uint8_t>(opcode) | WS_FINAL_FRAME),
-                            nullptr, // no mask from server
-                            payload.data(), payload.size());
-  // send all bytes
-  size_t offset = 0;
-  while (offset < built) {
-    ssize_t n = ::send(socket_fd_, frame.data() + offset, built - offset, 0);
-    if (n <= 0)
-      throw std::runtime_error("send failed");
-    offset += n;
-  }
-}
+void WebSocket::send_frame() {}
 
 void WebSocket::on_message(MessageHandler handler) { message_handler_ = std::move(handler); }
 
-int WebSocket::on_frame_header_cb(websocket_parser* p) {
-  auto self = static_cast<WebSocket*>(p->data);
-  // дізнаємося opcode поточного фрейму
-  auto opcode = static_cast<websocket_flags>(websocket_parser_get_opcode(p));
+void WebSocket::get_websocket_frame(std::vector<uint8_t> &raw_message, uint8_t &op_code) const {
+  bool is_final_frame = false;
+  bool is_first_frame = true;
 
-  // очищаємо лише якщо це не продовження фрагментованого повідомлення
-  if (opcode != WS_OP_CONTINUE) {
-    self->payload_accumulator_.clear();
-    // зберігаємо opcode для подальшого використання (якщо треба)
-    self->current_opcode_ = opcode;
-  }
+  do {
+    bool fin = false;
+    uint8_t opcode = 0;
+    std::vector<uint8_t> payload = parse_frame(fin, opcode);
 
-  return 0;
+    if (is_first_frame) {
+      if (opcode != 0x1 && opcode != 0x2) {
+        throw std::runtime_error("Unexpected opcode for initial frame");
+      }
+      op_code = opcode;
+      is_first_frame = false;
+    } else {
+      if (opcode != 0x0) {
+        throw std::runtime_error("Expected continuation frame");
+      }
+    }
+    raw_message.insert(raw_message.end(), payload.begin(), payload.end());
+    is_final_frame = fin;
+  } while (!is_final_frame);
 }
 
-int WebSocket::on_frame_body_cb(websocket_parser* p, const char* at, size_t length) {
-  auto self = static_cast<WebSocket*>(p->data);
-  // decode masked payload
-  std::vector<uint8_t> tmp(length);
-  websocket_parser_decode(
-    reinterpret_cast<char*>(tmp.data()),
-    at,
-    length,
-    p
-  );
-  // append to accumulator
-  self->payload_accumulator_.insert(
-    self->payload_accumulator_.end(),
-    tmp.begin(),
-    tmp.end()
-  );
-  return 0;
+std::vector<uint8_t> WebSocket::parse_frame(bool &out_final, uint8_t &out_opcode) const {
+  uint8_t header[2];
+  size_t n = recv(socket_fd_, header, sizeof(header), MSG_WAITALL);
+  if (n != sizeof(header)) {
+    throw std::runtime_error("Failed to read WebSocket frame header");
+  }
+
+  const bool fin = (header[0] & 0x80) != 0;
+  const uint8_t opcode = header[0] & 0x0F;
+  const bool mask = (header[1] & 0x80) != 0;
+  uint64_t payloadLen = header[1] & 0x7F;
+
+  if (payloadLen == 126) {
+    uint16_t len16;
+    n = recv(socket_fd_, &len16, sizeof(len16), MSG_WAITALL);
+    if (n != sizeof(len16)) {
+      throw std::runtime_error("Failed to read WebSocket frame length");
+    }
+    payloadLen = ntohs(len16);
+  } else if (payloadLen == 127) {
+    uint64_t len64;
+    n = recv(socket_fd_, &len64, sizeof(len64), MSG_WAITALL);
+    if (n != sizeof(len64)) {
+      throw std::runtime_error("Failed to read WebSocket frame length");
+    }
+    payloadLen = be64toh(len64);
+  }
+
+  uint8_t maskKey[4] = {};
+  if (mask) {
+    n = recv(socket_fd_, maskKey, sizeof(maskKey), MSG_WAITALL);
+    if (n != sizeof(maskKey)) {
+      throw std::runtime_error("Failed to read WebSocket frame mask key");
+    }
+  }
+
+  // Read payload data
+  std::vector<uint8_t> payload(payloadLen);
+  if (payloadLen > 0) {
+    n = recv(socket_fd_, payload.data(), payloadLen, MSG_WAITALL);
+    if (n != static_cast<ssize_t>(payloadLen)) {
+      throw std::runtime_error("Failed to read WebSocket frame payload");
+    }
+  }
+
+  if (mask) {
+    for (uint64_t i = 0; i < payloadLen; ++i) {
+      payload[i] ^= maskKey[i % 4];
+    }
+  }
+
+  if (opcode == 0x8) {
+    throw std::runtime_error("Connection close frame received");
+  }
+  if (opcode == 0x9) {
+    // TODO: Handle ping frame
+    throw std::runtime_error("Make a pong");
+  }
+  if (opcode == 0xA) {
+    // Pong: ignore
+  }
+
+  out_final = fin;
+  out_opcode = opcode;
+  return payload;
 }
 
-int WebSocket::on_frame_end_cb(websocket_parser* p) {
-  auto self = static_cast<WebSocket*>(p->data);
-  Frame f;
-  // беремо збережений opcode (а не get_opcode, який поверне CONTINUE для всіх наступних фрагментів)
-  f.opcode = static_cast<OpCode>(self->current_opcode_);
-  f.body   = std::move(self->payload_accumulator_);
-  {
-    std::lock_guard<std::mutex> lock(self->queue_mutex_);
-    self->frame_queue_.push(std::move(f));
+WebSocket::OpCode WebSocket::to_opcode(const uint8_t raw) const {
+  switch (raw) {
+    case 0x0: return OpCode::CONTINUATION;
+    case 0x1: return OpCode::TEXT;
+    case 0x2: return OpCode::BINARY;
+    case 0x8: return OpCode::CLOSE;
+    case 0x9: return OpCode::PING;
+    case 0xA: return OpCode::PONG;
+    default: return OpCode::UNKNOWN;
   }
-  if (self->message_handler_) {
-    std::string s(f.body.begin(), f.body.end());
-    self->message_handler_(s, f.opcode);
-  }
-  return 0;
 }

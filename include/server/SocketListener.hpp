@@ -13,19 +13,20 @@
 
 class SocketListener {
 public:
+  using Callback = std::function<void(int)>;
   struct Parameters {
     int max_events{16};
     int epoll_flags{0};
+    int epoll_timeout{1000};
   };
-  using Callback = std::function<void(int)>;
 
-  explicit SocketListener(Parameters parameters);
+  explicit SocketListener(Parameters parameters, Callback callback);
 
   ~SocketListener();
 
-  void add_socket(int fd, Callback cb, uint32_t events = EPOLLIN | EPOLLET);
+  void add_socket(int fd, uint32_t events = EPOLLIN | EPOLLET);
 
-  void remove_socket(int fd);
+  void remove_socket(int fd) const;
 
   void run();
 
@@ -37,7 +38,7 @@ private:
   Parameters parameters_;
   int epoll_fd_{-1};
   std::vector<epoll_event> events_;
-  std::unordered_map<int, Callback> callbacks_;
+  Callback callback_;
   bool running_{false};
 };
 
