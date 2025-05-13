@@ -1,1 +1,2 @@
 add_subdirectory(simple_web_server)
+add_subdirectory(paint)
