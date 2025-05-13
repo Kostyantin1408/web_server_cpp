@@ -20,7 +20,7 @@ add_library(server-core
         include/server/HttpRequest.hpp
         src/SocketListener.cpp
         include/server/Threadpool.hpp
-        src/threadpool.cpp)
+        src/Threadpool.cpp)
 
 target_include_directories(server-core PUBLIC include ${CMAKE_SOURCE_DIR}/3dparty/sha1)
 
