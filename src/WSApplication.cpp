@@ -21,7 +21,7 @@ void WSApplication::add_connection(WebSocket &connection) {
   if (!inserted) {
     throw std::runtime_error{"Connection with the same ID already exists"};
   }
-  WebSocket& ws = it->second;
+  WebSocket &ws = it->second;
   const int connection_fd = ws.get_fd();
   socket_listener_.add_socket(connection_fd);
   if (open_handler_) {
@@ -29,27 +29,49 @@ void WSApplication::add_connection(WebSocket &connection) {
   }
 }
 
-WSApplication &WSApplication::on_open(OpenHandler handler) {
+void WSApplication::on_open(OpenHandler handler) {
   open_handler_ = std::move(handler);
-  return *this;
 }
 
-WSApplication &WSApplication::on_message(MessageHandler handler) {
+void WSApplication::on_message(MessageHandler handler) {
   message_handler_ = std::move(handler);
-  return *this;
 }
 
-WSApplication &WSApplication::on_close(CloseHandler handler) {
+void WSApplication::on_close(CloseHandler handler) {
   close_handler_ = std::move(handler);
-  return *this;
 }
 
 void WSApplication::process_message(int fd) {
   auto it = std::ranges::find_if(connections, [fd](const auto &pair) { return pair.second.get_fd() == fd; });
-  if (it != connections.end()) {
-    std::string message;
-    WebSocket::OpCode op_code;
-    it->second.read_frame(message, op_code);
-    message_handler_(it->second, message, op_code);
+  if (it == connections.end()) {
+    return;
+  }
+
+  WebSocket &ws = it->second;
+  std::string message;
+  WebSocket::OpCode op_code;
+
+  try {
+    ws.read_frame(message, op_code);
+  } catch (const std::exception &ex) {
+    if (close_handler_) {
+      close_handler_(ws);
+    }
+    socket_listener_.remove_socket(fd);
+    connections.erase(it);
+    return;
+  }
+
+  if (op_code == WebSocket::OpCode::CLOSE) {
+    if (close_handler_) {
+      close_handler_(ws);
+    }
+    socket_listener_.remove_socket(fd);
+    connections.erase(it);
+    return;
+  }
+
+  if (message_handler_) {
+    message_handler_(ws, message, op_code);
   }
 }

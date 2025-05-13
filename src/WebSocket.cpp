@@ -1,6 +1,6 @@
 #include <netinet/in.h>
 #include <server/WebSocket.hpp>
-#include <server/sha1.hpp>
+#include <sha1.hpp>
 #include <sys/socket.h>
 
 WebSocket::WebSocket(const int socket_fd) : socket_fd_{socket_fd}, state_{State::CONNECTING} {}
@@ -30,15 +30,21 @@ WebSocket::~WebSocket() { close(socket_fd_); }
 
 int WebSocket::get_fd() const { return socket_fd_; }
 
-void WebSocket::send(const std::string &message, OpCode opcode) {}
-
-std::string WebSocket::accept_handshake(const std::string &websocket_key) {
-  Chocobo1::SHA1 sha;
-  sha.addData((websocket_key.data()), websocket_key.size());
-  sha.addData((WS_MAGIC.data()), WS_MAGIC.size());
-  sha.finalize();
-  const auto digest = sha.toVector();
-  return Chocobo1::base64_encode(std::string_view{reinterpret_cast<const char *>(digest.data()), digest.size()});
+void WebSocket::send(const std::string &message, const OpCode opcode) const {
+  if (opcode != OpCode::TEXT && opcode != OpCode::BINARY) {
+    throw std::runtime_error("Invalid opcode for message");
+  }
+  if (opcode == OpCode::TEXT) {
+    send_frame(std::vector<uint8_t>{message.begin(), message.end()}, opcode);
+  } else {
+    const size_t message_length = message.size();
+    const size_t frames_count = (message_length + MAX_BINARY_FRAME_SIZE - 1) / MAX_BINARY_FRAME_SIZE;
+    for (size_t i = 0; i < frames_count; ++i) {
+      const size_t start = i * MAX_BINARY_FRAME_SIZE;
+      const size_t end = std::min(start + MAX_BINARY_FRAME_SIZE, message_length);
+      send_frame(std::vector<uint8_t>{message.begin() + start, message.begin() + end}, opcode, i == frames_count - 1);
+    }
+  }
 }
 
 void WebSocket::read_frame(std::string &message, OpCode &opcode) const {
@@ -50,7 +56,14 @@ void WebSocket::read_frame(std::string &message, OpCode &opcode) const {
   opcode = to_opcode(op_code);
 }
 
-void WebSocket::send_frame() {}
+std::string WebSocket::accept_handshake(const std::string &websocket_key) {
+  Chocobo1::SHA1 sha;
+  sha.addData((websocket_key.data()), websocket_key.size());
+  sha.addData((WS_MAGIC.data()), WS_MAGIC.size());
+  sha.finalize();
+  const auto digest = sha.toVector();
+  return Chocobo1::base64_encode(std::string_view{reinterpret_cast<const char *>(digest.data()), digest.size()});
+}
 
 void WebSocket::on_message(MessageHandler handler) { message_handler_ = std::move(handler); }
 
@@ -77,6 +90,51 @@ void WebSocket::get_websocket_frame(std::vector<uint8_t> &raw_message, uint8_t &
     raw_message.insert(raw_message.end(), payload.begin(), payload.end());
     is_final_frame = fin;
   } while (!is_final_frame);
+}
+
+void WebSocket::send_frame(const std::vector<uint8_t> &data, const OpCode opcode, bool is_final) const {
+  std::vector<uint8_t> header;
+
+  uint8_t byte1 = 0;
+  if (is_final) {
+    byte1 |= 0x80; // Set FIN bit
+  }
+  byte1 |= static_cast<uint8_t>(opcode) & 0x0F;
+  header.push_back(byte1);
+
+  const uint64_t payloadLen = data.size();
+  if (payloadLen < 126) {
+    header.push_back(static_cast<uint8_t>(payloadLen));
+  } else if (payloadLen <= 0xFFFF) {
+    header.push_back(126);
+    const uint16_t len16 = htons(static_cast<uint16_t>(payloadLen));
+    header.push_back(len16 >> 8 & 0xFF);
+    header.push_back(len16 & 0xFF);
+  } else {
+    header.push_back(127);
+    const uint64_t len64 = htobe64(payloadLen);
+    for (int i = 0; i < 8; ++i) {
+      header.push_back(len64 >> 56 - 8 * i & 0xFF);
+    }
+  }
+
+  size_t sent = 0;
+  while (sent < header.size()) {
+    const ssize_t n = ::send(socket_fd_, header.data() + sent, header.size() - sent, 0);
+    if (n < 0) {
+      throw std::runtime_error("Failed to send WebSocket frame header");
+    }
+    sent += n;
+  }
+
+  sent = 0;
+  while (sent < data.size()) {
+    const ssize_t n = ::send(socket_fd_, data.data() + sent, data.size() - sent, 0);
+    if (n < 0) {
+      throw std::runtime_error("Failed to send WebSocket frame payload");
+    }
+    sent += n;
+  }
 }
 
 std::vector<uint8_t> WebSocket::parse_frame(bool &out_final, uint8_t &out_opcode) const {
@@ -148,12 +206,19 @@ std::vector<uint8_t> WebSocket::parse_frame(bool &out_final, uint8_t &out_opcode
 
 WebSocket::OpCode WebSocket::to_opcode(const uint8_t raw) const {
   switch (raw) {
-    case 0x0: return OpCode::CONTINUATION;
-    case 0x1: return OpCode::TEXT;
-    case 0x2: return OpCode::BINARY;
-    case 0x8: return OpCode::CLOSE;
-    case 0x9: return OpCode::PING;
-    case 0xA: return OpCode::PONG;
-    default: return OpCode::UNKNOWN;
+  case 0x0:
+    return OpCode::CONTINUATION;
+  case 0x1:
+    return OpCode::TEXT;
+  case 0x2:
+    return OpCode::BINARY;
+  case 0x8:
+    return OpCode::CLOSE;
+  case 0x9:
+    return OpCode::PING;
+  case 0xA:
+    return OpCode::PONG;
+  default:
+    return OpCode::UNKNOWN;
   }
 }

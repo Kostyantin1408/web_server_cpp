@@ -26,11 +26,11 @@ public:
 
   void add_connection(WebSocket &connection);
 
-  WSApplication& on_open(OpenHandler handler);
+  void on_open(OpenHandler handler);
 
-  WSApplication& on_message(MessageHandler handler);
+  void on_message(MessageHandler handler);
 
-  WSApplication& on_close(CloseHandler handler);
+  void on_close(CloseHandler handler);
 
 private:
   void process_message(int fd);
