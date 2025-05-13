@@ -42,7 +42,6 @@ void WebServer::listen(int port) {
         throw std::runtime_error("listen failed");
     }
 
-    std::cout << "HTTP server listening on port " << port << "..." << std::endl;
 }
 
 void WebServer::run() {

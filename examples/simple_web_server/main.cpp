@@ -4,14 +4,14 @@
 
 
 int main() {
-    WebServer server{{"127.0.0.1", 8080}};
+    int port = 8080;
+    WebServer server{{"127.0.0.1", port}};
     const std::filesystem::path base_assets_path = std::filesystem::absolute("assets");
-    server.get("/", [base_assets_path](const HttpRequest &) {
-        return HttpResponse::FromFile((base_assets_path / "index.html").string(), "text/html");
-    });
-    server.get("/assets", [base_assets_path](const HttpRequest &req) {
-        return HttpResponse::ServeStatic(base_assets_path, req, "/assets");
+    server.get("/", [base_assets_path](const HttpRequest &req) {
+        return HttpResponse::ServeStatic(base_assets_path, req, "/");
     });
     server.run();
+    std::cout << "HTTP server listening on port " << port << "..." << std::endl;
+
     std::this_thread::sleep_for(std::chrono::minutes(10));
 }
