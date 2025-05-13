@@ -121,6 +121,8 @@ HttpResponse HttpResponse::ServeStatic(const std::filesystem::path &base_path, c
     std::string relative = req.path.substr(route_prefix.length());
     if (!relative.empty() && relative[0] == '/')
         relative.erase(0, 1);
+    if (relative.empty())
+        relative = "index.html";
 
     std::filesystem::path requested_path = base_path / relative;
 
@@ -141,7 +143,7 @@ HttpResponse HttpResponse::ServeStatic(const std::filesystem::path &base_path, c
     }
 
     if (!exists(normalized_path) || is_directory(normalized_path)) {
-        return NotFound("File not found: " + normalized_path.string());
+        return NotFound("File not found: " + relative);
     }
 
     std::string ext = normalized_path.extension().string();
