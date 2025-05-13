@@ -27,8 +27,5 @@ int main() {
       });
   server.activate_websockets();
   server.run();
-
-  std::this_thread::sleep_for(std::chrono::seconds(3));
-  server.request_stop();
   server.wait_for_exit();
 }
