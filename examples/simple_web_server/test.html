@@ -12,7 +12,7 @@
 
 <script>
     const log = document.getElementById('log');
-    const ws = new WebSocket('ws://172.24.67.179:8089');
+    const ws = new WebSocket('ws://172.19.179.62:8089');
 
     ws.onopen = () => log.textContent += '👉 Підключено\n';
     ws.onmessage = e => log.textContent += '📥 Echo: ' + e.data + '\n';

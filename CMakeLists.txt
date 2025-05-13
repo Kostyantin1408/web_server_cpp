@@ -16,8 +16,10 @@ add_library(server-core
         include/server/WSApplication.hpp
         src/WSApplication.cpp
         include/server/SocketListener.hpp
+        include/server/WebServer.hpp
+        include/server/HttpRequest.hpp
         src/SocketListener.cpp
-        include/server/threadpool.hpp
+        include/server/Threadpool.hpp
         src/threadpool.cpp)
 
 target_include_directories(server-core PUBLIC include ${CMAKE_SOURCE_DIR}/3dparty/sha1)
