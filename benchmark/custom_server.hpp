@@ -1,0 +1,20 @@
+#ifndef CUSTOM_SERVER_HPP
+#define CUSTOM_SERVER_HPP
+
+#include <memory>
+
+#include "HttpRequest.hpp"
+#include "WebServer.hpp"
+
+
+inline std::unique_ptr<WebServer> launch_custom_server(int port = 8080) {
+    auto server = std::make_unique<WebServer>(WebServer::Parameters{.host = "127.0.0.1", .port = port});
+    server->get("/hello", [](const HttpRequest&) {
+        return HttpResponse::Text("OK");
+    });
+    server->run();
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    return server;
+}
+
+#endif //CUSTOM_SERVER_HPP

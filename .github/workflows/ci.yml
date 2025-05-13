@@ -1,33 +1,49 @@
-name: CI
+name: C++ CI
 
 on:
   push:
+    branches: [ main ]
+  pull_request:
     branches: [ main ]
 
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        compiler: [ gcc, clang ]
+
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
-      - name: Install system deps & build GoogleTest
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential cmake libgtest-dev
-          cd /usr/src/googletest
-          sudo mkdir -p build && cd build
-          sudo cmake .. -DCMAKE_BUILD_TYPE=Release
-          sudo make
-          sudo cp lib/*.a /usr/lib/
-      - name: Configure
-        working-directory: ${{ github.workspace }}
+          sudo apt-get install -y build-essential cmake
+
+      - name: Set compiler
         run: |
-          mkdir -p build
+          if [[ "${{ matrix.compiler }}" == "clang" ]]; then
+            echo "CC=clang" >> $GITHUB_ENV
+            echo "CXX=clang++" >> $GITHUB_ENV
+          else
+            echo "CC=gcc" >> $GITHUB_ENV
+            echo "CXX=g++" >> $GITHUB_ENV
+          fi
+
+      - name: Configure CMake with tests enabled
+        run: |
+          mkdir build
           cd build
-          cmake .. -DCMAKE_BUILD_TYPE=Release
-      - name: Build
-        run: cmake --build build -- -j$(nproc)
+          cmake .. -DCMAKE_BUILD_TYPE=Release -DENABLE_TESTS=ON
+
+      - name: Build using CMake
+        run: |
+          cd build
+          cmake --build . --config Release
+
       - name: Run tests
         run: |
           cd build
-          ./web_server_tests
+          ctest --output-on-failure

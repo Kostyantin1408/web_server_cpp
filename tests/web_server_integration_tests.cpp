@@ -101,8 +101,3 @@ TEST(RunStopTest, CanStartAndStopWithoutCrashing) {
     std::this_thread::sleep_for(std::chrono::seconds(5));
     EXPECT_NO_THROW(server.stop());
 }
-
-int main(int argc, char **argv) {
-    ::testing::InitGoogleTest(&argc, argv);
-    return RUN_ALL_TESTS();
-}

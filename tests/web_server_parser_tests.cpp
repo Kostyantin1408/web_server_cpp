@@ -173,7 +173,3 @@ TEST(BenchmarkHttpRequest, ParseChunked1MB_1000x) {
               << avg_ms << " ms/request\n";
 }
 
-int main(int argc, char **argv) {
-    ::testing::InitGoogleTest(&argc, argv);
-    return RUN_ALL_TESTS();
-}
