@@ -10,8 +10,6 @@ add_library(server-core
         3dparty/sha1/sha1.hpp
         src/WebServer.cpp src/HttpRequest.cpp
         include/server/HttpResponse.hpp
-        include/server/HttpRequestReader.hpp
-        src/HttpRequestReader.cpp
         src/HttpResponse.cpp
         src/WebSocket.cpp
         include/server/WebSocket.hpp
@@ -22,8 +20,6 @@ add_library(server-core
         include/server/threadpool.hpp
         src/threadpool.cpp)
 
-target_include_directories(server-core PUBLIC include)
-
 target_include_directories(server-core PUBLIC include ${CMAKE_SOURCE_DIR}/3dparty/sha1)
 
 if (ENABLE_BENCHMARK)
@@ -33,7 +29,6 @@ endif ()
 if (ENABLE_TESTS)
     add_subdirectory(tests)
 endif ()
-
 
 if (BUILD_EXAMPLES)
     add_subdirectory(examples)

@@ -8,7 +8,6 @@ FetchContent_Declare(
 
 FetchContent_MakeAvailable(httplib)
 
-find_package(Boost REQUIRED COMPONENTS system)
 
 include(FetchContent)
 
@@ -25,4 +24,4 @@ add_executable(web_server_benchmark_tests benchmark_runner.cpp custom_server.hpp
         boost_server.hpp
         crow_server.hpp)
 
-target_link_libraries(web_server_benchmark_tests PRIVATE httplib custom-web-server Boost::system Crow::Crow)
+target_link_libraries(web_server_benchmark_tests PRIVATE httplib server-core Crow::Crow)

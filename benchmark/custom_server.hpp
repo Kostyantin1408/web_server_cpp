@@ -3,8 +3,8 @@
 
 #include <memory>
 
-#include "HttpRequest.hpp"
-#include "WebServer.hpp"
+#include <server/HttpRequest.hpp>
+#include <server/WebServer.hpp>
 
 
 inline std::unique_ptr<WebServer> launch_custom_server(int port = 8080) {
