@@ -3,93 +3,15 @@
 #include <mutex>
 #include <server/HttpRequest.hpp>
 #include <server/WebServer.hpp>
-#include <server/encryption.hpp>
 #include <sys/socket.h>
 #include <unistd.h>
 #include <utility>
 
 WebServer::WebServer(Parameters parameters_)
-    : parameters{std::move(parameters_)}, ws_app_{std::move(parameters_.ws_app)} {
+    : parameters{std::move(parameters_)}, thread_pool_{parameters.num_threads}, ws_app_{std::move(parameters_.ws_app)} {
   listen(parameters.port);
 }
 
-void WebServer::listen(int port) {
-  server_fd = socket(AF_INET, SOCK_STREAM, 0);
-  if (server_fd < 0) {
-    throw std::runtime_error("socket creation failed");
-  }
-
-  int opt = 1;
-  if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0) {
-    close(server_fd);
-    throw std::runtime_error("setsockopt failed");
-  }
-
-  std::memset(&address, 0, sizeof(address));
-  address.sin_family = AF_INET;
-  address.sin_addr.s_addr = INADDR_ANY;
-  address.sin_port = htons(port);
-
-  if (bind(server_fd, reinterpret_cast<sockaddr *>(&address), sizeof(address)) < 0) {
-    close(server_fd);
-    throw std::runtime_error("bind failed");
-  }
-  if (::listen(server_fd, 3) < 0) {
-    close(server_fd);
-    throw std::runtime_error("listen failed");
-  }
-
-  std::cout << "HTTP server listening on port " << port << "..." << std::endl;
-}
-
-WSApplication &WebServer::WSApp() { return ws_app_; }
-
-void WebServer::run() {
-  server_thread = std::jthread{[this](const std::stop_token &stop_token) { main_thread_acceptor(stop_token); }};
-  thread_pool.reserve(number_of_workers);
-  for (size_t i = 0; i < number_of_workers; ++i) {
-    thread_pool.emplace_back([this]() { worker(); });
-  }
-  stop_source = server_thread.get_stop_source();
-}
-
-void WebServer::main_thread_acceptor(const std::stop_token &token) {
-  while (!token.stop_requested()) {
-    socklen_t addr_len = sizeof(address);
-    int client_fd = accept(server_fd, reinterpret_cast<sockaddr *>(&address), &addr_len);
-    if (client_fd < 0) {
-      std::cerr << "accept failed" << std::endl;
-      continue;
-    }
-    {
-      std::unique_lock<std::mutex> lock(mtx);
-      tasks_queue.push(client_fd);
-    }
-    cv.notify_one();
-  }
-}
-
-void WebServer::worker() {
-  while (true) {
-    int client_fd;
-    {
-      std::unique_lock<std::mutex> lock(mtx);
-      cv.wait(lock, [&] { return !tasks_queue.empty() || shutdownFlag; });
-
-      if (shutdownFlag && tasks_queue.empty())
-        break;
-
-      client_fd = tasks_queue.front();
-      tasks_queue.pop();
-    }
-    std::cout << "Processing client: " << client_fd << std::endl;
-    on_http(client_fd);
-  }
-}
-
-void WebServer::handle(HttpRequest::HttpMethod method, const std::string &route, RouteHandler handler) {
-  method_handlers[method][route] = std::move(handler);
-}
 
 void WebServer::get(const std::string &route, RouteHandler handler) {
   handle(HttpRequest::HttpMethod::HTTP_GET, route, std::move(handler));
@@ -115,19 +37,41 @@ void WebServer::head(const std::string &route, RouteHandler handler) {
   handle(HttpRequest::HttpMethod::HTTP_HEAD, route, std::move(handler));
 }
 
-void WebServer::options(const std::string &route, RouteHandler handler) {
-  handle(HttpRequest::HttpMethod::HTTP_OPTIONS, route, std::move(handler));
+WebServer &WebServer::on_open(WSApplication::OpenHandler handler) {
+  ws_app_.on_open(std::move(handler));
+  return *this;
 }
 
-void WebServer::stop() {
+WebServer &WebServer::on_message(WSApplication::MessageHandler handler) {
+  ws_app_.on_message(std::move(handler));
+  return *this;
+}
+
+WebServer &WebServer::on_close(WSApplication::CloseHandler handler) {
+  ws_app_.on_close(std::move(handler));
+  return *this;
+}
+
+void WebServer::activate_websockets() { ws_app_.activate(); }
+
+void WebServer::run() {
+  server_thread = std::jthread{[this](const std::stop_token &st) { main_thread_acceptor(st); }};
+  stop_source = server_thread.get_stop_source();
+}
+
+void WebServer::request_stop() {
   if (!stop_source.request_stop()) {
     throw std::runtime_error("Failed to request server stop.");
   }
   {
-    std::lock_guard<std::mutex> lock(mtx);
-    shutdownFlag = true;
+    std::lock_guard lock(mtx);
+    shutdown_flag = true;
   }
   cv.notify_all();
+
+  thread_pool_.request_stop();
+
+  ws_app_.stop();
 
   shutdown(server_fd, SHUT_RDWR);
 
@@ -138,10 +82,9 @@ void WebServer::stop() {
 }
 
 void WebServer::wait_for_exit() {
-  for (auto &worker_thread : thread_pool) {
-    if (worker_thread.joinable())
-      worker_thread.join();
-  }
+  std::unique_lock lock(mtx);
+  cv.wait(lock, [this] { return shutdown_flag; });
+  thread_pool_.wait_for_exit();
 }
 
 void WebServer::on_http(int client_fd) {
@@ -195,4 +138,59 @@ void WebServer::on_http(int client_fd) {
     write(client_fd, resp_str.c_str(), resp_str.size());
     close(client_fd);
   }
+}
+
+void WebServer::options(const std::string &route, RouteHandler handler) {
+  handle(HttpRequest::HttpMethod::HTTP_OPTIONS, route, std::move(handler));
+}
+
+void WebServer::listen(const int port) {
+  server_fd = socket(AF_INET, SOCK_STREAM, 0);
+  if (server_fd < 0) {
+    throw std::runtime_error("socket creation failed");
+  }
+
+  const int opt = 1;
+  if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0) {
+    close(server_fd);
+    throw std::runtime_error("setsockopt failed");
+  }
+
+  std::memset(&address, 0, sizeof(address));
+  address.sin_family = AF_INET;
+  address.sin_addr.s_addr = INADDR_ANY;
+  address.sin_port = htons(port);
+
+  if (bind(server_fd, reinterpret_cast<sockaddr *>(&address), sizeof(address)) < 0) {
+    close(server_fd);
+    throw std::runtime_error("bind failed");
+  }
+  if (::listen(server_fd, 3) < 0) {
+    close(server_fd);
+    throw std::runtime_error("listen failed");
+  }
+
+  std::cout << "HTTP server listening on port " << port << "..." << std::endl;
+}
+
+void WebServer::main_thread_acceptor(const std::stop_token &token) {
+  while (!token.stop_requested()) {
+    socklen_t addr_len = sizeof(address);
+    int client_fd = accept(server_fd, reinterpret_cast<sockaddr *>(&address), &addr_len);
+    if (client_fd < 0) {
+      continue;
+    }
+    {
+      std::scoped_lock lock(mtx);
+      if (shutdown_flag) {
+        close(client_fd);
+        break;
+      }
+    }
+    thread_pool_.submit([this, client_fd]() { on_http(client_fd); });
+  }
+}
+
+void WebServer::handle(const HttpRequest::HttpMethod method, const std::string &route, RouteHandler handler) {
+  method_handlers[method][route] = std::move(handler);
 }

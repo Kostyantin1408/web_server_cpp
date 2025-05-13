@@ -1,6 +1,5 @@
 #include <server/HttpResponse.hpp>
 
-#include <server/encryption.hpp>
 #include <sstream>
 #include <fstream>
 #include <filesystem>

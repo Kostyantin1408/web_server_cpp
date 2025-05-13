@@ -14,13 +14,9 @@ set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 
 FetchContent_MakeAvailable(googletest)
 
-# find openssl
-find_package(OpenSSL REQUIRED)
-if (NOT OpenSSL_FOUND)
-    message(FATAL_ERROR "OpenSSL not found")
-endif ()
 
 add_library(server-core
+        3dparty/sha1/sha1.hpp
         src/WebServer.cpp src/HttpRequest.cpp
         include/server/HttpResponse.hpp
         src/HttpResponse.cpp
@@ -28,16 +24,16 @@ add_library(server-core
         include/server/WebSocket.hpp
         include/server/WSApplication.hpp
         src/WSApplication.cpp
-        include/server/WebSocketParser.hpp
-        src/WebSocketParser.cpp
         include/server/SocketListener.hpp
-        src/SocketListener.cpp)
+        src/SocketListener.cpp
+        include/server/threadpool.hpp
+        src/threadpool.cpp)
 
-target_include_directories(server-core PUBLIC include)
+target_include_directories(server-core PUBLIC include ${CMAKE_SOURCE_DIR}/3dparty/sha1)
 
 
 add_executable(web_server main.cpp)
-target_link_libraries(web_server pthread OpenSSL::SSL OpenSSL::Crypto server-core)
+target_link_libraries(web_server pthread server-core)
 
 add_executable(web_server_tests tests/main.cpp src/WebServer.cpp src/HttpRequest.cpp src/HttpResponse.cpp)
 target_include_directories(web_server_tests PRIVATE include)

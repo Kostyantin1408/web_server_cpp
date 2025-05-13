@@ -34,18 +34,18 @@ public:
 
   int get_fd() const;
 
-  void send(const std::string &message, OpCode opcode);
-
-  std::string accept_handshake(const std::string &websocket_key);
+  void send(const std::string &message, OpCode opcode) const;
 
   void read_frame(std::string &message, OpCode &opcode) const;
 
-  void send_frame();
+  std::string accept_handshake(const std::string &websocket_key);
 
   void on_message(MessageHandler handler);
 
 private:
   void get_websocket_frame(std::vector<uint8_t> &raw_message, uint8_t& op_code) const;
+
+  void send_frame(const std::vector<uint8_t> &data, OpCode opcode, bool is_final = true) const;
 
   std::vector<uint8_t> parse_frame(bool& out_final, uint8_t& out_opcode) const;
 
@@ -59,6 +59,8 @@ private:
   State state_;
   MessageHandler message_handler_;
 
+  static constexpr ssize_t MAX_TEXT_FRAME_SIZE = 4096;
+  static constexpr ssize_t MAX_BINARY_FRAME_SIZE = 16384;
   static constexpr std::string_view WS_MAGIC = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
 };
 

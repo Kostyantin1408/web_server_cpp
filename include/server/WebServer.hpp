@@ -3,6 +3,7 @@
 
 #include "HttpRequest.hpp"
 #include "HttpResponse.hpp"
+#include "server/Threadpool.hpp"
 #include "WSApplication.hpp"
 
 #include <condition_variable>
@@ -19,21 +20,11 @@ public:
   struct Parameters {
     std::string host{};
     int port{};
+    size_t num_threads{4};
     WSApplication::Parameters ws_app{};
   };
 
-  struct WSParams {
-    std::function<void(WebSocket *)> on_open = nullptr;
-    std::function<void(WebSocket *)> on_message = nullptr;
-  };
-
   explicit WebServer(Parameters parameters_);
-
-  WSApplication& WSApp();
-
-  void simulate_on_open();
-
-  void run();
 
   void get(const std::string &route, RouteHandler handler);
   void post(const std::string &route, RouteHandler handler);
@@ -43,8 +34,15 @@ public:
   void head(const std::string &route, RouteHandler handler);
   void options(const std::string &route, RouteHandler handler);
 
+  WebServer& on_open(WSApplication::OpenHandler handler);
+  WebServer& on_message(WSApplication::MessageHandler handler);
+  WebServer& on_close(WSApplication::CloseHandler handler);
 
-  void stop();
+  void activate_websockets();
+
+  void run();
+
+  void request_stop();
 
   void wait_for_exit();
 
@@ -52,30 +50,28 @@ public:
 
 private:
   void listen(int port);
+
   void main_thread_acceptor(const std::stop_token& token);
-  void worker();
+
+  void handle(HttpRequest::HttpMethod method, const std::string &route, RouteHandler handler);
 
   Parameters parameters;
   int server_fd{};
   sockaddr_in address{};
   std::jthread server_thread;
   std::stop_source stop_source;
+  Threadpool thread_pool_;
 
   bool is_running = false;
 
   std::unordered_map<HttpRequest::HttpMethod, std::unordered_map<std::string, RouteHandler>> method_handlers;
-  void handle(HttpRequest::HttpMethod method, const std::string& route, RouteHandler handler);
 
-  static constexpr int number_of_workers = 8;
-
-  std::vector<std::jthread> thread_pool;
-  std::queue<int> tasks_queue;
   std::mutex mtx;
   std::condition_variable cv;
 
   WSApplication ws_app_;
 
-  bool shutdownFlag = false;
+  bool shutdown_flag = false;
 };
 
 #endif // WEBSOCKET___WEBSERVER_HPP
