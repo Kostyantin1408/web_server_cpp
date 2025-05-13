@@ -4,7 +4,6 @@
 #include <mutex>
 #include <ranges>
 #include <server/HttpRequest.hpp>
-#include <server/HttpRequestReader.hpp>
 #include <server/WebServer.hpp>
 #include <sys/socket.h>
 #include <unistd.h>
@@ -93,22 +92,19 @@ void WebServer::wait_for_exit() {
 }
 
 void WebServer::on_http(int client_fd) {
-  bool keep_alive = true;
+  char buffer[1024];
+  ssize_t bytes_read = read(client_fd, buffer, sizeof(buffer) - 1);
 
-  while (keep_alive) {
-    HttpRequestReader reader(client_fd);
-    auto raw_request_opt = reader.read_full_request();
-    if (!raw_request_opt)
-      break;
+  if (bytes_read > 0) {
+    buffer[bytes_read] = '\0';
 
-    const std::string &raw_request = *raw_request_opt;
-    HttpRequest req = HttpRequest::parse_http_request(raw_request);
+    std::string request_raw(buffer);
+    HttpRequest req = HttpRequest::parse_http_request(request_raw);
     if (req.method == HttpRequest::HttpMethod::HTTP_UNKNOWN) {
       HttpResponse response = HttpResponse::NotFound("Unknown HTTP method");
-      std::string resp_str = response.to_string();
-      write(client_fd, resp_str.c_str(), resp_str.size());
+      write(client_fd, response.to_string().c_str(), response.to_string().size());
       close(client_fd);
-      break;
+      return;
     }
 
     if (req.is_websocket_upgrade()) {
@@ -142,16 +138,6 @@ void WebServer::on_http(int client_fd) {
       }
     }
 
-    auto conn_it = req.headers.find("connection");
-    std::string conn_value = (conn_it != req.headers.end()) ? conn_it->second : "";
-    std::ranges::transform(conn_value, conn_value.begin(), ::tolower);
-
-    if (conn_value == "close" || req.version != "HTTP/1.1") {
-      keep_alive = false;
-    } else {
-      response.set_header("Connection", "keep-alive");
-    }
-
     std::string resp_str = response.to_string();
     write(client_fd, resp_str.c_str(), resp_str.size());
     close(client_fd);
@@ -183,8 +169,6 @@ void WebServer::listen(const int port) {
     close(server_fd);
     throw std::runtime_error("listen failed");
   }
-
-  std::cout << "HTTP server listening on port " << port << "..." << std::endl;
 }
 
 void WebServer::main_thread_acceptor(const std::stop_token &token) {

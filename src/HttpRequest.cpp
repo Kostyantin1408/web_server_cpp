@@ -150,39 +150,7 @@ HttpRequest HttpRequest::parse_http_request(const std::string &raw_request) {
         req.headers[key_lower] = value_lower;
     }
 
-    if (req.headers.find("transfer-encoding") != req.headers.end() &&
-        req.headers["transfer-encoding"] == "chunked") {
 
-        std::istringstream body_stream_raw(body_part);
-        std::ostringstream body_stream_decoded;
-
-        while (true) {
-            std::string size_line;
-            std::getline(body_stream_raw, size_line);
-            if (!size_line.empty() && size_line.back() == '\r') {
-                size_line.pop_back();
-            }
-
-            size_t chunk_size = 0;
-            std::istringstream chunk_size_stream(size_line);
-            chunk_size_stream >> std::hex >> chunk_size;
-            if (chunk_size == 0) {
-                break;
-            }
-
-            std::string chunk(chunk_size, '\0');
-            body_stream_raw.read(&chunk[0], chunk_size);
-            body_stream_decoded << chunk;
-
-            body_stream_raw.get();
-            body_stream_raw.get();
-        }
-
-        req.body = body_stream_decoded.str();
-    } else {
-        req.body = body_part;
-    }
+    req.body = body_part;
     return req;
 }
-
-
