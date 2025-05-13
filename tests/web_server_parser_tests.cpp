@@ -1,8 +1,8 @@
 #include <gtest/gtest.h>
 #include <chrono>
 #include <iostream>
-#include "HttpRequest.hpp"
-#include "WebServer.hpp"
+#include <server/HttpRequest.hpp>
+#include <server/WebServer.hpp>
 
 const std::string chunked_request =
     "POST /test HTTP/1.1\r\n"

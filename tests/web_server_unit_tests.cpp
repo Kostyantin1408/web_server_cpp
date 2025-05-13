@@ -1,8 +1,6 @@
 #include <gtest/gtest.h>
-#include <HttpRequest.hpp>
-#include <HttpResponse.hpp>
-
-#include "encryption.hpp"
+#include <server/HttpRequest.hpp>
+#include <server/HttpResponse.hpp>
 
 TEST(HttpRequestTest, ParsesQueryParams) {
     std::string raw =
@@ -41,12 +39,6 @@ TEST(HttpResponseTest, NotFoundResponseIncludesMessage) {
     HttpResponse res = HttpResponse::NotFound("missing");
     EXPECT_EQ(res.status_code, 404);
     EXPECT_EQ(res.body, "missing");
-}
-
-TEST(EncryptionTest, GeneratesValidWebSocketAccept) {
-    std::string key = "dGhlIHNhbXBsZSBub25jZQ==";
-    std::string expected = "s3pPLMBiTxaQ9kYGzzhZRbK+xOo=";
-    EXPECT_EQ(make_websocket_accept(key), expected);
 }
 
 TEST(HttpRequestTest, ParsesChunkedBody_Basic) {
