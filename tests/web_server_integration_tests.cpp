@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
-#include <WebServer.hpp>
-#include <HttpRequest.hpp>
+#include <server/WebServer.hpp>
+#include <server/HttpRequest.hpp>
 #include <sys/socket.h>
 #include <unistd.h>
 #include <cstring>
@@ -98,6 +98,7 @@ TEST(OnHttpTest, DispatchesPostHandler) {
 TEST(RunStopTest, CanStartAndStopWithoutCrashing) {
     WebServer server(makeParams());
     EXPECT_NO_THROW(server.run());
-    std::this_thread::sleep_for(std::chrono::seconds(5));
-    EXPECT_NO_THROW(server.stop());
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+    EXPECT_NO_THROW(server.request_stop());
+    EXPECT_NO_THROW(server.wait_for_exit());
 }

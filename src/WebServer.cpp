@@ -1,20 +1,19 @@
+#include <algorithm>
 #include <cstring>
 #include <iostream>
 #include <mutex>
+#include <ranges>
 #include <server/HttpRequest.hpp>
+#include <server/HttpRequestReader.hpp>
 #include <server/WebServer.hpp>
 #include <sys/socket.h>
 #include <unistd.h>
 #include <utility>
-#include <algorithm>
-#include <ranges>
-#include "HttpRequestReader.hpp"
 
 WebServer::WebServer(Parameters parameters_)
     : parameters{std::move(parameters_)}, thread_pool_{parameters.num_threads}, ws_app_{std::move(parameters_.ws_app)} {
   listen(parameters.port);
 }
-
 
 void WebServer::get(const std::string &route, RouteHandler handler) {
   handle(HttpRequest::HttpMethod::HTTP_GET, route, std::move(handler));
@@ -94,22 +93,23 @@ void WebServer::wait_for_exit() {
 }
 
 void WebServer::on_http(int client_fd) {
-    bool keep_alive = true;
+  bool keep_alive = true;
 
-    while (keep_alive) {
-        HttpRequestReader reader(client_fd);
-        auto raw_request_opt = reader.read_full_request();
-        if (!raw_request_opt) break;
+  while (keep_alive) {
+    HttpRequestReader reader(client_fd);
+    auto raw_request_opt = reader.read_full_request();
+    if (!raw_request_opt)
+      break;
 
-        const std::string &raw_request = *raw_request_opt;
-        HttpRequest req = HttpRequest::parse_http_request(raw_request);
-        if (req.method == HttpRequest::HttpMethod::HTTP_UNKNOWN) {
-            HttpResponse response = HttpResponse::NotFound("Unknown HTTP method");
-            std::string resp_str = response.to_string();
-            write(client_fd, resp_str.c_str(), resp_str.size());
-          close(client_fd);
-            break;
-        }
+    const std::string &raw_request = *raw_request_opt;
+    HttpRequest req = HttpRequest::parse_http_request(raw_request);
+    if (req.method == HttpRequest::HttpMethod::HTTP_UNKNOWN) {
+      HttpResponse response = HttpResponse::NotFound("Unknown HTTP method");
+      std::string resp_str = response.to_string();
+      write(client_fd, resp_str.c_str(), resp_str.size());
+      close(client_fd);
+      break;
+    }
 
     if (req.is_websocket_upgrade()) {
       std::cout << "WebSocket upgrade requested\n";
@@ -147,9 +147,9 @@ void WebServer::on_http(int client_fd) {
     std::ranges::transform(conn_value, conn_value.begin(), ::tolower);
 
     if (conn_value == "close" || req.version != "HTTP/1.1") {
-        keep_alive = false;
+      keep_alive = false;
     } else {
-        response.set_header("Connection", "keep-alive");
+      response.set_header("Connection", "keep-alive");
     }
 
     std::string resp_str = response.to_string();

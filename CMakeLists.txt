@@ -6,29 +6,12 @@ option(ENABLE_BENCHMARK "Enable benchmark" OFF)
 option(ENABLE_TESTS "Enable tests" OFF)
 option(BUILD_EXAMPLES "Build examples" OFF)
 
-include(FetchContent)
-
-add_library(custom-web-server src/WebServer.cpp src/HttpRequest.cpp
-        include/HttpResponse.hpp include/HttpRequest.hpp include/WebServer.hpp include/sha1.hpp include/encryption.hpp
-        src/HttpResponse.cpp
-        src/HttpRequestReader.cpp
-        include/HttpRequestReader.hpp)
-
-target_include_directories(custom-web-server PUBLIC include)
-
-#target_link_libraries(custom-web-server Threads::Threads)
-
-if (ENABLE_BENCHMARK)
-    add_subdirectory(benchmark)
-endif ()
-
-if (ENABLE_TESTS)
-    add_subdirectory(tests)
-endif ()
 add_library(server-core
         3dparty/sha1/sha1.hpp
         src/WebServer.cpp src/HttpRequest.cpp
         include/server/HttpResponse.hpp
+        include/server/HttpRequestReader.hpp
+        src/HttpRequestReader.cpp
         src/HttpResponse.cpp
         src/WebSocket.cpp
         include/server/WebSocket.hpp
@@ -39,11 +22,18 @@ add_library(server-core
         include/server/threadpool.hpp
         src/threadpool.cpp)
 
+target_include_directories(server-core PUBLIC include)
+
 target_include_directories(server-core PUBLIC include ${CMAKE_SOURCE_DIR}/3dparty/sha1)
 
+if (ENABLE_BENCHMARK)
+    add_subdirectory(benchmark)
+endif ()
 
-add_executable(web_server main.cpp)
-target_link_libraries(web_server pthread server-core)
+if (ENABLE_TESTS)
+    add_subdirectory(tests)
+endif ()
+
 
 if (BUILD_EXAMPLES)
     add_subdirectory(examples)
