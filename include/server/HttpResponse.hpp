@@ -4,7 +4,7 @@
 #include <string>
 #include <map>
 #include <filesystem>
-#include <HttpRequest.hpp>
+#include <server/HttpRequest.hpp>
 
 struct HttpResponse {
     std::string version = "HTTP/1.1";
