@@ -1,14 +1,17 @@
-#include <server/HttpRequest.hpp>
-#include <server/WebServer.hpp>
 #include <cstring>
-#include <server/encryption.hpp>
 #include <iostream>
 #include <mutex>
+#include <server/HttpRequest.hpp>
+#include <server/WebServer.hpp>
+#include <server/encryption.hpp>
 #include <sys/socket.h>
 #include <unistd.h>
 #include <utility>
 
-WebServer::WebServer(Parameters parameters_) : parameters{std::move(parameters_)} { listen(parameters.port); }
+WebServer::WebServer(Parameters parameters_)
+    : parameters{std::move(parameters_)}, ws_app_{std::move(parameters_.ws_app)} {
+  listen(parameters.port);
+}
 
 void WebServer::listen(int port) {
   server_fd = socket(AF_INET, SOCK_STREAM, 0);
@@ -39,9 +42,7 @@ void WebServer::listen(int port) {
   std::cout << "HTTP server listening on port " << port << "..." << std::endl;
 }
 
-WSApplication& WebServer::WSApp() {
-  return ws_app;
-}
+WSApplication &WebServer::WSApp() { return ws_app_; }
 
 void WebServer::run() {
   server_thread = std::jthread{[this](const std::stop_token &stop_token) { main_thread_acceptor(stop_token); }};
@@ -162,7 +163,9 @@ void WebServer::on_http(int client_fd) {
     if (req.is_websocket_upgrade()) {
       std::cout << "WebSocket upgrade requested\n";
       WebSocket ws{client_fd};
-      HttpResponse ws_response = HttpResponse::WebSocketSwitchingProtocols(ws.accept_handshake(req.get_websocket_key()));
+      ws_app_.add_connection(ws);
+      HttpResponse ws_response =
+          HttpResponse::WebSocketSwitchingProtocols(ws.accept_handshake(req.get_websocket_key()));
       std::string resp_str = ws_response.to_string();
       write(client_fd, resp_str.c_str(), resp_str.size());
       std::cout << "Handshake complete. Accept key: " << req.get_websocket_key() << "\n";

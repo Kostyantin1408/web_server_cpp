@@ -1,48 +1,59 @@
 #ifndef WEBSOCKET_HPP
 #define WEBSOCKET_HPP
-#include <server/WebSocketParser.hpp>
 #include <cstdint>
 #include <functional>
 #include <memory>
 #include <queue>
 #include <string>
+#include <utility>
 #include <vector>
 
 class WebSocket {
 public:
   enum class State { CONNECTING, OPEN, CLOSING, CLOSED };
-  enum class OpCode : uint8_t { CONTINUATION = 0x0, TEXT = 0x1, BINARY = 0x2, CLOSE = 0x8, PING = 0x9, PONG = 0xA };
+  enum class OpCode : uint8_t { CONTINUATION = 0x0, TEXT = 0x1, BINARY = 0x2, CLOSE = 0x8, PING = 0x9, PONG = 0xA, UNKNOWN};
 
-  struct Frame {
-    std::vector<uint8_t> body;
-    OpCode opcode;
+  struct WebSocketFrame {
+    bool fin;
+    uint8_t opcode;
+    bool masked;
+    uint64_t payload_length;
+    uint8_t masking_key[4];
+    std::vector<uint8_t> payload;
   };
 
   using MessageHandler = std::function<void(const std::string &, OpCode)>;
 
   explicit WebSocket(int socket_fd);
 
+  WebSocket(WebSocket&& other) noexcept;
+
+  WebSocket& operator=(WebSocket &&) noexcept;
+
   ~WebSocket();
+
+  int get_fd() const;
+
+  void send(const std::string &message, OpCode opcode);
 
   std::string accept_handshake(const std::string &websocket_key);
 
-  void read_frame(std::string &out_payload, OpCode &out_opcode);
+  void read_frame(std::string &message, OpCode &opcode) const;
 
-  void send_frame(const std::string &payload, OpCode opcode = OpCode::TEXT);
+  void send_frame();
 
   void on_message(MessageHandler handler);
 
 private:
-  static int on_frame_header_cb(websocket_parser *p);
-  static int on_frame_body_cb(websocket_parser *p, const char *at, size_t length);
-  static int on_frame_end_cb(websocket_parser *p);
+  void get_websocket_frame(std::vector<uint8_t> &raw_message, uint8_t& op_code) const;
 
-  std::unique_ptr<websocket_parser> parser_;
-  std::unique_ptr<websocket_parser_settings> settings_;
+  std::vector<uint8_t> parse_frame(bool& out_final, uint8_t& out_opcode) const;
+
+  OpCode to_opcode(uint8_t raw) const;
+
   std::vector<uint8_t> payload_accumulator_;
-  std::queue<Frame> frame_queue_;
+  std::queue<WebSocketFrame> frame_queue_;
   std::mutex queue_mutex_;
-  websocket_flags current_opcode_;
 
   int socket_fd_;
   State state_;
