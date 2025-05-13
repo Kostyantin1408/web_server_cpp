@@ -7,8 +7,8 @@
 #include <iostream>
 #include <mutex>
 #include <utility>
-#include <bits/ranges_algo.h>
-
+#include <algorithm>
+#include <ranges>
 #include "HttpRequestReader.hpp"
 
 
@@ -81,7 +81,6 @@ void WebServer::worker() {
             client_fd = tasks_queue.front();
             tasks_queue.pop();
         }
-        std::cout << "Processing client: " << client_fd << std::endl;
         on_http(client_fd);
         close(client_fd);
     }
