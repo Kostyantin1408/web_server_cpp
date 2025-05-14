@@ -80,6 +80,8 @@ server.wait_for_exit();
 
 ### Olivec - Online painter using websockets
 
+Olivec example demonstrates real-time WebSocket communication.
+It is a collaborative drawing tool where multiple users can draw together on a shared canvas. The screenshot below shows the application in action:
 ![olivec.png](assets/olivec.png)
 
 ### Simple Web Server - REST API demonstration
