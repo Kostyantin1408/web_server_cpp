@@ -80,7 +80,7 @@ server.wait_for_exit();
 
 ### Olivec - Online painter using websockets
 
-
+![olivec.png](assets/olivec.png)
 
 ### Simple Web Server - REST API demonstration
 
@@ -89,7 +89,7 @@ server.wait_for_exit();
 ```
 
 ```shell
-curl -X GET http://127.0.0.1:8080/ -H "Content-Type: application/json" -d '{"update":"new_value"}'
+curl -X GET http://127.0.0.1:8080/
 ```
 
 ## Benchmarking
