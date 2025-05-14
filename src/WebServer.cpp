@@ -107,14 +107,12 @@ void WebServer::on_http(int client_fd) {
         }
 
         if (req.is_websocket_upgrade()) {
-            std::cout << "WebSocket upgrade requested\n";
             WebSocket ws{client_fd};
             ws_app_.add_connection(ws);
             HttpResponse ws_response =
                     HttpResponse::WebSocketSwitchingProtocols(ws.accept_handshake(req.get_websocket_key()));
             std::string resp_str = ws_response.to_string();
             write(client_fd, resp_str.c_str(), resp_str.size());
-            std::cout << "Handshake complete. Accept key: " << req.get_websocket_key() << "\n";
             return;
         }
 

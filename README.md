@@ -1,52 +1,103 @@
-# **HTTP server with web sockets support**
+# **LWS: Lightweight Websocket Server**
 
-In this project our intention is to create a simple HTTP server with web sockets support.   
-  
-> **Main requirements are**:
-> - Support for HTTP requests and responses
-> - Support for web sockets
-> - Support for multiple clients
-> - Support for multiple threads
-> - Cross-platform compatibility
-> - lightweight
-> - intuitive API
+![Tests](https://github.com/Kostyantin1408/web_server_cpp/actions/workflows/ci.yml/badge.svg)
 
-## Prerequirements
-- **g++** >= 14.2.0
-- **cmake** >= 3.26
+LWS is a lightweight http server with websocket support. Main features are:
+- Support for HTTP requests and responses
+- Support for websockets
+- Multithreading
+- Lightweight
+- Intuitive API
+- Fast
 
-## Compilation
-```bash
-mkdir build
-cd build
-cmake ..
-make
+## Prerequisites
+- **Linux**
+- **g++** >= 14.2.0 or **clang** >= 18.1.3
+- **cmake** >= 3.22
+
+## Setup
+
+Library can easily be added using cmake FetchContent:
+
+```cmake
+include(FetchContent)
+
+FetchContent_Declare(
+        lws
+        GIT_REPOSITORY https://github.com/Kostyantin1408/web_server_cpp.git
+        GIT_TAG main
+)
+FetchContent_MakeAvailable(lws)
+
+target_link_libraries({YOUR_TARGET} lws)
 ```
 
-## Run example
+## Usage
+
+#### Initialize the server
+```c++
+WebServer server{{"127.0.0.1", 8080}};
+```
+#### Serve static files
+```c++
+server.get("/", [base_assets_path](const HttpRequest &req) {
+  return HttpResponse::ServeStatic(base_assets_path, req, "/");
+});
+```
+#### Process HTTP requests
+```c++
+server.post("/test", [](const HttpRequest &req) {
+  return HttpResponse::Text("Received:\n" + req.body, 200);
+});
+```
+
+#### WebSocket communication
+```c++
+server.on_open([](WebSocket &ws) { std::cout << "[WS] Connection opened" << std::endl; })
+  .on_message([](WebSocket &ws, std::string_view msg, WebSocket::OpCode opCode) {
+     std::cout << "[WS] Message received: " << msg << std::endl;
+     ws.send("Thanks for your message!", WebSocket::OpCode::TEXT);
+  })
+  .on_close([](WebSocket &ws) {
+     const int fd = ws.get_fd();
+     std::cout << "Connection closed on fd: " << fd << std::endl;
+   });
+server.activate_websockets(); // Enable websocket support
+```
+
+#### Start the server
+```c++
+server.run();
+```
+
+#### Stop if needed
+```c++
+server.request_stop();
+server.wait_for_exit();
+```
+
+## Examples
+
+### Olivec - Online painter using websockets
+
+![olivec.png](assets/olivec.png)
+
+### Simple Web Server - REST API demonstration
+
 ```bash
 ./web_server
 ```
 
 ```shell
-curl -X GET http://127.0.0.1:8080/ -H "Content-Type: application/json" -d '{"update":"new_value"}'
+curl -X GET http://127.0.0.1:8080/
 ```
 
-## Usage example
-#### Start server
-```c++
-WebServer server{{"127.0.0.1", 8080}};
-```
-#### Add handler
-```c++
-server.get("/", [](int client_fd, const HttpRequest &req) {
-    ...
-    write(client_fd, response, std::strlen(response));
-  });
-```
+## Benchmarking
 
-#### Stop server
-```c++
-server.request_stop();
+```text
+| Server Name        | Avg (us) | Min (us) | StdDev (us) |   Avg RPS |
+|--------------------|----------|----------|-------------|-----------|
+| Custom WebServer   |       70 |       63 |           4 |     14180 |
+| cpp-httplib        |       81 |       75 |           2 |     12326 |
+| Crow               |       76 |       69 |           7 |     13111 |
 ```
-

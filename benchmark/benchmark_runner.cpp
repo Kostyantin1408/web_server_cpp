@@ -17,12 +17,12 @@ struct BenchmarkResult {
     double avg_rps;
 };
 
-BenchmarkResult benchmark(const std::string &name, std::function<void()> launch_server,
-                          std::function<void()> stop_server, int port) {
-    constexpr int num_iterations = 50;
+BenchmarkResult benchmark(const std::string &name, const std::function<void()>& launch_server,
+                          const std::function<void()>& stop_server, int port) {
+    constexpr int num_iterations = 200;
     constexpr int N = 1000;
 
-    std::cout << "--- Benchmark Start (" << num_iterations << " iterations) ---\n";
+    std::cout << "--- Benchmark for " << name << " started (" << num_iterations << " iterations) ---\n";
 
     std::vector<long long> durations;
 
@@ -50,14 +50,14 @@ BenchmarkResult benchmark(const std::string &name, std::function<void()> launch_
     stop_server();
 
     double sum = std::accumulate(durations.begin(), durations.end(), 0.0);
-    double avg = sum / durations.size();
-    double min = *std::min_element(durations.begin(), durations.end());
+    double avg = sum / static_cast<double>(durations.size());
+    double min = static_cast<double>(*std::ranges::min_element(durations));
 
     double variance = 0.0;
     for (auto d: durations) {
-        variance += (d - avg) * (d - avg);
+        variance += (static_cast<double>(d) - avg) * (static_cast<double>(d) - avg);
     }
-    double stddev = std::sqrt(variance / durations.size());
+    double stddev = std::sqrt(variance / static_cast<double>(durations.size()));
     double avg_rps = 1000.0 * N / avg;
 
     return {name, avg, min, stddev, avg_rps};
@@ -65,7 +65,7 @@ BenchmarkResult benchmark(const std::string &name, std::function<void()> launch_
 
 
 void print_results_table(const std::vector<BenchmarkResult> &results) {
-    std::cout << "\n| Server Name        | Avg (ms) | Min (ms) | StdDev (ms) | Avg RPS   |\n";
+    std::cout << "\n| Server Name        | Avg (us) | Min (us) | StdDev (us) | Avg RPS   |\n";
     std::cout << "|--------------------|----------|----------|-------------|-----------|\n";
     for (const auto &r: results) {
         std::cout << "| " << std::left << std::setw(19) << r.name
@@ -78,7 +78,6 @@ void print_results_table(const std::vector<BenchmarkResult> &results) {
 }
 
 int main() {
-
     std::vector<BenchmarkResult> results;
 
     std::unique_ptr<WebServer> custom_server_instance;
@@ -109,4 +108,6 @@ int main() {
     ));
 
     print_results_table(results);
+
+    return 0;
 }

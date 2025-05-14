@@ -3,8 +3,8 @@
 #include <iostream>
 
 int main() {
-    auto port = 8089;
-    WebServer server{{"127.0.0.1", port}};
+    WebServer::Parameters params{"127.0.0.1", 8080};
+    WebServer server{params};
     const std::filesystem::path base_assets_path = std::filesystem::absolute("assets");
     server.get("/", [base_assets_path](const HttpRequest &req) {
         return HttpResponse::ServeStatic(base_assets_path, req, "/");
@@ -26,7 +26,9 @@ int main() {
     server.activate_websockets();
     server.run();
 
-    std::cout << "HTTP server listening on port " << port << "..." << std::endl;
+    std::cout << "HTTP server is running on http://" << params.host << ":" << params.port << " ..." << std::endl;
 
     server.wait_for_exit();
+
+    return 0;
 }
