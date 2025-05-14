@@ -106,7 +106,7 @@ curl -X GET http://127.0.0.1:8080/
 Check working websockets at http://127.0.0.1:8080/test.html
 
 ## Benchmarking
-
+Benchmarking of three different C++ web servers is done by measuring the time to complete 1000 sequential GET requests to the /hello endpoint over 200 iterations. LWS showed the best performance.
 ```text
 | Server Name        | Avg (us) | Min (us) | StdDev (us) |   Avg RPS |
 |--------------------|----------|----------|-------------|-----------|
