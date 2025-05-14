@@ -44,6 +44,12 @@ server.get("/", [base_assets_path](const HttpRequest &req) {
   return HttpResponse::ServeStatic(base_assets_path, req, "/");
 });
 ```
+#### Process HTTP requests
+```c++
+server.post("/test", [](const HttpRequest &req) {
+  return HttpResponse::Text("Received:\n" + req.body, 200);
+});
+```
 #### Full list of predefined responses
 ```c++
 HttpResponse::Text(const std::string& body, int status = 200);
@@ -53,12 +59,6 @@ HttpResponse::Redirect(const std::string& location, bool permanent = false);
 HttpResponse::Html(const std::string& html, int status = 200);
 HttpResponse::FromFile(const std::string& file_path, const std::string& content_type = "application/octet-stream");
 HttpResponse::ServeStatic(const std::filesystem::path& base_path, const HttpRequest& req, const std::string& route_prefix = "/assets");
-```
-#### Process HTTP requests
-```c++
-server.post("/test", [](const HttpRequest &req) {
-  return HttpResponse::Text("Received:\n" + req.body, 200);
-});
 ```
 
 #### WebSocket communication
@@ -98,10 +98,12 @@ It is a collaborative drawing tool where multiple users can draw together on a s
 ### Simple Web Server - REST API demonstration
 Simple Web Server example demonstrates how to use the Light Web Server to serve static assets, handle basic HTTP REST methods, and support WebSocket communication.
 
-Check response:
+Check HTTP GET response:
 ```shell
 curl -X GET http://127.0.0.1:8080/
 ```
+
+Check working websockets at http://127.0.0.1:8080/test.html
 
 ## Benchmarking
 
