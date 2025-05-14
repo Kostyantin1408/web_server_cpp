@@ -9,6 +9,7 @@ LWS is a lightweight http server with websocket support. Main features are:
 - Lightweight
 - Intuitive API
 - Fast
+- No dependencies
 
 ## Prerequisites
 - **Linux**
@@ -58,19 +59,18 @@ HttpResponse::NotFound(const std::string& message = "404 Not Found");
 HttpResponse::Redirect(const std::string& location, bool permanent = false);
 HttpResponse::Html(const std::string& html, int status = 200);
 HttpResponse::FromFile(const std::string& file_path, const std::string& content_type = "application/octet-stream");
-HttpResponse::ServeStatic(const std::filesystem::path& base_path, const HttpRequest& req, const std::string& route_prefix = "/assets");
+HttpResponse::ServeStatic(const std::filesystem::path& base_path, const HttpRequest& req, const std::string& route_prefix = "/");
 ```
 
 #### WebSocket communication
 ```c++
-server.on_open([](WebSocket &ws) { std::cout << "[WS] Connection opened" << std::endl; })
+server.on_open([](WebSocket &ws) { std::cout << "Connection opened" << std::endl; })
   .on_message([](WebSocket &ws, std::string_view msg, WebSocket::OpCode opCode) {
-     std::cout << "[WS] Message received: " << msg << std::endl;
+     std::cout << "Message received: " << msg << std::endl;
      ws.send("Thanks for your message!", WebSocket::OpCode::TEXT);
   })
   .on_close([](WebSocket &ws) {
-     const int fd = ws.get_fd();
-     std::cout << "Connection closed on fd: " << fd << std::endl;
+     std::cout << "Connection closed" << std::endl;
    });
 server.activate_websockets(); // Enable websocket support
 ```
