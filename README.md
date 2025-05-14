@@ -45,6 +45,11 @@ server.get("/", [](int client_fd, const HttpRequest &req) {
   });
 ```
 
+## Third-pary libraries
+```
+https://github.com/Chocobo1/Hash
+```
+
 #### Stop server
 ```c++
 server.request_stop();
