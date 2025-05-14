@@ -50,6 +50,7 @@ server.get("/", [](int client_fd, const HttpRequest &req) {
 server.request_stop();
 ```
 ## Third-pary libraries
+There is a SHA1-encoding and decoding library, used in this project. Here is a link to it:
 ```
 https://github.com/Chocobo1/Hash
 ```
