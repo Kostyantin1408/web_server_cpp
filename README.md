@@ -114,3 +114,5 @@ Benchmarking of three different C++ web servers is done by measuring the time to
 | cpp-httplib        |       81 |       75 |           2 |     12326 |
 | Crow               |       76 |       69 |           7 |     13111 |
 ```
+
+Benchmarking of three different C++ web servers is done by measuring the time to complete 1000 sequential GET requests over 200 iterations. **LWS** showed the best performance among popular Crow and HttpLib.
