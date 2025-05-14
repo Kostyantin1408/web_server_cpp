@@ -23,7 +23,7 @@ void WSApplication::add_connection(WebSocket &connection) {
   }
   WebSocket &ws = it->second;
   const int connection_fd = ws.get_fd();
-  socket_listener_.add_socket(connection_fd);
+  socket_listener_.add_socket(connection_fd, EPOLLIN);
   if (open_handler_) {
     open_handler_(ws);
   }

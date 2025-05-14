@@ -10,5 +10,5 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(json)
 
-add_executable(paint paint.cpp)
+add_executable(paint olivec.cpp)
 target_link_libraries(paint PRIVATE server-core nlohmann_json::nlohmann_json uuid)
