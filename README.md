@@ -44,6 +44,16 @@ server.get("/", [base_assets_path](const HttpRequest &req) {
   return HttpResponse::ServeStatic(base_assets_path, req, "/");
 });
 ```
+#### Full list of predefined responses
+```c++
+HttpResponse::Text(const std::string& body, int status = 200);
+HttpResponse::Json(const std::string& json_body, int status = 200);
+HttpResponse::NotFound(const std::string& message = "404 Not Found");
+HttpResponse::Redirect(const std::string& location, bool permanent = false);
+HttpResponse::Html(const std::string& html, int status = 200);
+HttpResponse::FromFile(const std::string& file_path, const std::string& content_type = "application/octet-stream");
+HttpResponse::ServeStatic(const std::filesystem::path& base_path, const HttpRequest& req, const std::string& route_prefix = "/assets");
+```
 #### Process HTTP requests
 ```c++
 server.post("/test", [](const HttpRequest &req) {
@@ -82,14 +92,13 @@ server.wait_for_exit();
 
 Olivec example demonstrates real-time WebSocket communication.
 It is a collaborative drawing tool where multiple users can draw together on a shared canvas. The screenshot below shows the application in action:
+
 ![olivec.png](assets/olivec.png)
 
 ### Simple Web Server - REST API demonstration
+Simple Web Server example demonstrates how to use the Light Web Server to serve static assets, handle basic HTTP REST methods, and support WebSocket communication.
 
-```bash
-./web_server
-```
-
+Check response:
 ```shell
 curl -X GET http://127.0.0.1:8080/
 ```
