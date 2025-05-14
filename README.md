@@ -1,5 +1,7 @@
 # **LWS: Lightweight Websocket Server**
 
+![Tests](https://github.com/Kostyantin1408/web_server_cpp/actions/workflows/ci.yml/badge.svg)
+
 LWS is a lightweight http server with websocket support. Main features are:
 - Support for HTTP requests and responses
 - Support for websockets
