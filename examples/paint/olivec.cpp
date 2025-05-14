@@ -59,7 +59,6 @@ int main() {
         int fd = ws.get_fd();
         std::string uuid = generate_uuid();
         clients[fd] = ClientInfo{uuid, "Anonymous", &ws};
-        std::cout << "[WS] Client connected: " << fd << std::endl;
     });
 
     server.on_message([](WebSocket &ws, std::string_view data, WebSocket::OpCode opCode) {
@@ -84,7 +83,6 @@ int main() {
                 ws.send(replay.dump(), WebSocket::OpCode::TEXT);
             }
         } else if (msg["type"] == "draw") {
-            std::cout << "[WS] Draw message received: " << msg << std::endl;
             json stroke = {
                 {"type", "draw"},
                 {"fromX", msg["fromX"]},
@@ -114,7 +112,6 @@ int main() {
     server.on_close([](WebSocket &ws) {
         int fd = ws.get_fd();
         clients.erase(fd);
-        std::cout << "Connection closed on fd: " << fd << std::endl;
     });
 
     server.activate_websockets();
