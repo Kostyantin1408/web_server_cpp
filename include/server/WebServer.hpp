@@ -1,5 +1,5 @@
-#ifndef WEBSOCKET___WEBSERVER_HPP
-#define WEBSOCKET___WEBSERVER_HPP
+#ifndef WEBSOCKET_WEBSERVER_HPP
+#define WEBSOCKET_WEBSERVER_HPP
 
 #include "HttpRequest.hpp"
 #include "HttpResponse.hpp"
@@ -9,7 +9,6 @@
 #include <condition_variable>
 #include <functional>
 #include <netinet/in.h>
-#include <queue>
 #include <stop_token>
 #include <thread>
 
@@ -74,4 +73,4 @@ private:
   bool shutdown_flag = false;
 };
 
-#endif // WEBSOCKET___WEBSERVER_HPP
+#endif // WEBSOCKET_WEBSERVER_HPP

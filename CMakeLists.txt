@@ -6,23 +6,25 @@ option(ENABLE_BENCHMARK "Enable benchmark" OFF)
 option(ENABLE_TESTS "Enable tests" OFF)
 option(BUILD_EXAMPLES "Build examples" OFF)
 
-add_library(server-core
+add_library(lws
         3dparty/sha1/sha1.hpp
-        src/WebServer.cpp src/HttpRequest.cpp
+        include/server/HttpRequest.hpp
         include/server/HttpResponse.hpp
-        src/HttpResponse.cpp
-        src/WebSocket.cpp
+        include/server/SocketListener.hpp
+        include/server/Threadpool.hpp
+        include/server/WebServer.hpp
         include/server/WebSocket.hpp
         include/server/WSApplication.hpp
-        src/WSApplication.cpp
-        include/server/SocketListener.hpp
-        include/server/WebServer.hpp
-        include/server/HttpRequest.hpp
+        src/HttpRequest.cpp
+        src/HttpResponse.cpp
         src/SocketListener.cpp
-        include/server/Threadpool.hpp
-        src/Threadpool.cpp)
+        src/Threadpool.cpp
+        src/WebServer.cpp
+        src/WebSocket.cpp
+        src/WSApplication.cpp
+)
 
-target_include_directories(server-core PUBLIC include ${CMAKE_SOURCE_DIR}/3dparty/sha1)
+target_include_directories(lws PUBLIC include ${CMAKE_SOURCE_DIR}/3dparty/sha1)
 
 if (ENABLE_BENCHMARK)
     add_subdirectory(benchmark)

@@ -1,6 +1,5 @@
 cmake_minimum_required(VERSION 3.22)
 
-
 include(FetchContent)
 
 FetchContent_Declare(
@@ -10,5 +9,5 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(json)
 
-add_executable(paint olivec.cpp)
-target_link_libraries(paint PRIVATE server-core nlohmann_json::nlohmann_json uuid)
+add_executable(olivec olivec.cpp)
+target_link_libraries(olivec PRIVATE lws nlohmann_json::nlohmann_json uuid)

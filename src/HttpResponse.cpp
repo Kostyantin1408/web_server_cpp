@@ -149,7 +149,6 @@ HttpResponse HttpResponse::ServeStatic(const std::filesystem::path &base_path, c
     std::ranges::transform(ext, ext.begin(), ::tolower);
     std::string mime = detect_mime(ext);
 
-    std::cerr << "Serving static file: " << normalized_path << std::endl;
     return FromFile(normalized_path.string(), mime);
 }
 

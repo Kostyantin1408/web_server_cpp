@@ -150,9 +150,4 @@ TEST_F(SocketListenerTest, RemovingNonexistentSocket_DoesNothing) {
   EXPECT_NO_THROW(listener.remove_socket(fakefd));
 }
 
-int main(int argc, char **argv) {
-  ::testing::InitGoogleTest(&argc, argv);
-  return RUN_ALL_TESTS();
-}
-
 #endif // SOCKETLISTENER_TEST_HPP
