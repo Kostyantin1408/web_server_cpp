@@ -9,6 +9,7 @@ LWS is a lightweight http server with websocket support. Main features are:
 - Lightweight
 - Intuitive API
 - Fast
+- No dependencies
 
 ## Prerequisites
 - **Linux**
@@ -50,17 +51,26 @@ server.post("/test", [](const HttpRequest &req) {
   return HttpResponse::Text("Received:\n" + req.body, 200);
 });
 ```
+#### Full list of predefined responses
+```c++
+HttpResponse::Text(const std::string& body, int status = 200);
+HttpResponse::Json(const std::string& json_body, int status = 200);
+HttpResponse::NotFound(const std::string& message = "404 Not Found");
+HttpResponse::Redirect(const std::string& location, bool permanent = false);
+HttpResponse::Html(const std::string& html, int status = 200);
+HttpResponse::FromFile(const std::string& file_path, const std::string& content_type = "application/octet-stream");
+HttpResponse::ServeStatic(const std::filesystem::path& base_path, const HttpRequest& req, const std::string& route_prefix = "/");
+```
 
 #### WebSocket communication
 ```c++
-server.on_open([](WebSocket &ws) { std::cout << "[WS] Connection opened" << std::endl; })
+server.on_open([](WebSocket &ws) { std::cout << "Connection opened" << std::endl; })
   .on_message([](WebSocket &ws, std::string_view msg, WebSocket::OpCode opCode) {
-     std::cout << "[WS] Message received: " << msg << std::endl;
+     std::cout << "Message received: " << msg << std::endl;
      ws.send("Thanks for your message!", WebSocket::OpCode::TEXT);
   })
   .on_close([](WebSocket &ws) {
-     const int fd = ws.get_fd();
-     std::cout << "Connection closed on fd: " << fd << std::endl;
+     std::cout << "Connection closed" << std::endl;
    });
 server.activate_websockets(); // Enable websocket support
 ```
@@ -80,20 +90,22 @@ server.wait_for_exit();
 
 ### Olivec - Online painter using websockets
 
+Olivec example demonstrates real-time WebSocket communication.
+It is a collaborative drawing tool where multiple users can draw together on a shared canvas. The screenshot below shows the application in action:
+
 ![olivec.png](assets/olivec.png)
 
 ### Simple Web Server - REST API demonstration
+Simple Web Server example demonstrates how to use the Light Web Server to serve static assets, handle basic HTTP REST methods, and support WebSocket communication.
 
-```bash
-./web_server
-```
-
+Check HTTP GET response:
 ```shell
 curl -X GET http://127.0.0.1:8080/
 ```
 
-## Benchmarking
+Check working websockets at http://127.0.0.1:8080/test.html
 
+## Benchmarking
 ```text
 | Server Name        | Avg (us) | Min (us) | StdDev (us) |   Avg RPS |
 |--------------------|----------|----------|-------------|-----------|
@@ -101,3 +113,5 @@ curl -X GET http://127.0.0.1:8080/
 | cpp-httplib        |       81 |       75 |           2 |     12326 |
 | Crow               |       76 |       69 |           7 |     13111 |
 ```
+
+Benchmarking of three different C++ web servers is done by measuring the time to complete 1000 sequential GET requests over 200 iterations. **LWS** showed the best performance among popular Crow and HttpLib.
